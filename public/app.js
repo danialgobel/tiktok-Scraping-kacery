@@ -148,26 +148,100 @@ const TOUR_STEPS = [
 let currentTourStep = 0;
 
 /**
+ * Discord Activity Logger & Client Telemetry
+ */
+function getClientTelemetry() {
+  const ua = navigator.userAgent || '';
+  let os = 'Unknown OS';
+  if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/Android/i.test(ua)) os = 'Android';
+  else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Unknown Browser';
+  if (/Edg/i.test(ua)) browser = 'Edge';
+  else if (/Chrome/i.test(ua)) browser = 'Chrome';
+  else if (/Safari/i.test(ua)) browser = 'Safari';
+  else if (/Firefox/i.test(ua)) browser = 'Firefox';
+
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  const device = isMobile ? (/(iPad|tablet)/i.test(ua) ? 'Tablet' : 'Smartphone') : 'Desktop';
+  const screen = `${window.screen?.width || window.innerWidth || 0}x${window.screen?.height || window.innerHeight || 0}`;
+  const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  return { device, os, browser, screen, isPwa };
+}
+
+let lastLoggedUrlsText = '';
+let inputDebounceTimer = null;
+
+function logDiscordActivity(type, action, details = {}) {
+  try {
+    const payload = {
+      type,
+      action,
+      clientInfo: getClientTelemetry(),
+      details
+    };
+    fetch('/api/activity-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (err) {
+    // Non-blocking: never disrupt the app
+  }
+}
+
+/**
  * Initialize Application
  */
 function init() {
   updateSummaryStrip();
   registerServiceWorker();
 
-  // Input counter listener
-  urlsInput.addEventListener('input', updateInputCounter);
+  // Send Session Start notification to Discord
+  logDiscordActivity('SESSION_OPEN', 'Web App Dibuka', {
+    campaignName: currentConfig.name,
+    campaignConfig: currentConfig
+  });
+
+  // Input counter listener with debounced activity logger
+  urlsInput.addEventListener('input', () => {
+    updateInputCounter();
+    clearTimeout(inputDebounceTimer);
+    inputDebounceTimer = setTimeout(() => {
+      const currentVal = urlsInput.value.trim();
+      if (currentVal && currentVal !== lastLoggedUrlsText) {
+        lastLoggedUrlsText = currentVal;
+        const detectedUrls = parseUrlsFromInput();
+        logDiscordActivity('INPUT_CHANGE', 'Input Link Diperbarui', {
+          totalLinks: detectedUrls.length,
+          sampleUrls: detectedUrls.slice(0, 8)
+        });
+      }
+    }, 1200);
+  });
 
   // Quick Action Buttons
   btnClearInput.addEventListener('click', () => {
     urlsInput.value = '';
+    lastLoggedUrlsText = '';
     updateInputCounter();
     showToast('Kotak input telah dikosongkan.');
+    logDiscordActivity('BUTTON_CLICK', 'Kosongkan Input', { info: 'User membersihkan seluruh isi kotak input' });
   });
 
   btnDemoLink.addEventListener('click', () => {
     urlsInput.value = 'https://www.tiktok.com/@scout2015/video/6718335390845095173';
+    lastLoggedUrlsText = urlsInput.value;
     updateInputCounter();
     showToast('Link demo berhasil dimasukkan.');
+    logDiscordActivity('BUTTON_CLICK', 'Coba Link Demo', {
+      value: urlsInput.value,
+      info: 'User memasukkan contoh link video demo scout2015'
+    });
   });
 
   btnPasteClipboard.addEventListener('click', async () => {
@@ -175,8 +249,14 @@ function init() {
       const text = await navigator.clipboard.readText();
       if (text) {
         urlsInput.value = (urlsInput.value ? urlsInput.value + '\n' : '') + text.trim();
+        lastLoggedUrlsText = urlsInput.value;
         updateInputCounter();
+        const urls = parseUrlsFromInput();
         showToast('Link berhasil ditempel dari clipboard.');
+        logDiscordActivity('BUTTON_CLICK', 'Tempel dari Clipboard', {
+          info: `Berhasil menempel dari clipboard (${urls.length} link terdeteksi)`,
+          sampleUrls: urls.slice(0, 8)
+        });
       }
     } catch (err) {
       showToast('Harap izinkan akses clipboard browser ya Kacery.');
@@ -190,14 +270,35 @@ function init() {
   filterStatus.addEventListener('change', (e) => {
     activeFilter = e.target.value;
     renderCards();
+    logDiscordActivity('BUTTON_CLICK', 'Ganti Filter Status', {
+      info: `Filter disetel ke: ${activeFilter}`,
+      filter: activeFilter
+    });
   });
 
-  btnCopyAllReport.addEventListener('click', copyAllReportsToClipboard);
-  btnExportCsv.addEventListener('click', exportReportsToCsv);
+  btnCopyAllReport.addEventListener('click', () => {
+    copyAllReportsToClipboard();
+    logDiscordActivity('BUTTON_CLICK', 'Salin Semua Laporan', {
+      info: `User menyalin rangkuman ${sessionReports.length} laporan video ke clipboard`
+    });
+  });
+
+  btnExportCsv.addEventListener('click', () => {
+    exportReportsToCsv();
+    logDiscordActivity('BUTTON_CLICK', 'Ekspor CSV', {
+      info: `User mengunduh rekap CSV untuk ${sessionReports.length} video`
+    });
+  });
 
   // Config Modal Handlers
-  btnOpenConfig.addEventListener('click', openConfigModal);
-  btnQuickEdit.addEventListener('click', openConfigModal);
+  btnOpenConfig.addEventListener('click', () => {
+    openConfigModal();
+    logDiscordActivity('BUTTON_CLICK', 'Buka Pengaturan Campaign', { info: 'User membuka dialog pengaturan campaign' });
+  });
+  btnQuickEdit.addEventListener('click', () => {
+    openConfigModal();
+    logDiscordActivity('BUTTON_CLICK', 'Buka Pengaturan Campaign (Quick Edit)', { info: 'User membuka dialog pengaturan campaign dari summary strip' });
+  });
   btnCloseConfig.addEventListener('click', closeConfigModal);
   btnCancelConfig.addEventListener('click', closeConfigModal);
   btnSaveConfig.addEventListener('click', saveConfigFromForm);
@@ -218,7 +319,10 @@ function init() {
   });
 
   // Tour Handlers
-  btnStartTour.addEventListener('click', () => startTour(true));
+  btnStartTour.addEventListener('click', () => {
+    startTour(true);
+    logDiscordActivity('BUTTON_CLICK', 'Buka Panduan / Tour', { info: 'User membuka panduan penggunaan aplikasi' });
+  });
   btnTourClose.addEventListener('click', closeTour);
   btnTourSkip.addEventListener('click', closeTour);
   btnTourPrev.addEventListener('click', prevTourStep);
@@ -381,6 +485,7 @@ function setupTagAdders() {
     if (!tempHashtags.some(h => h.toLowerCase() === val.toLowerCase())) {
       tempHashtags.push(val);
       renderHashtagChips();
+      logDiscordActivity('BUTTON_CLICK', 'Tambah Tagar Campaign', { value: val, info: `Menambahkan tagar: ${val}` });
     }
     inputNewHashtag.value = '';
     inputNewHashtag.focus();
@@ -401,6 +506,7 @@ function setupTagAdders() {
     if (!tempMentions.some(m => m.toLowerCase() === val.toLowerCase())) {
       tempMentions.push(val);
       renderMentionChips();
+      logDiscordActivity('BUTTON_CLICK', 'Tambah Mention Campaign', { value: val, info: `Menambahkan mention: ${val}` });
     }
     inputNewMention.value = '';
     inputNewMention.focus();
@@ -420,6 +526,7 @@ function setupTagAdders() {
     if (!tempBrands.some(b => b.toLowerCase() === val.toLowerCase())) {
       tempBrands.push(val);
       renderBrandChips();
+      logDiscordActivity('BUTTON_CLICK', 'Tambah Brand Keyword', { value: val, info: `Menambahkan keyword brand: ${val}` });
     }
     inputNewBrand.value = '';
     inputNewBrand.focus();
@@ -440,6 +547,7 @@ function setupTagAdders() {
     if (!tempUsernames.some(u => u.toLowerCase() === val.toLowerCase())) {
       tempUsernames.push(val);
       renderUsernameChips();
+      logDiscordActivity('BUTTON_CLICK', 'Tambah Username Affiliate', { value: val, info: `Menambahkan username affiliate: ${val}` });
     }
     inputNewUsername.value = '';
     inputNewUsername.focus();
@@ -475,29 +583,33 @@ function renderTagChipsHelper(container, list, onRemove) {
 
 function renderHashtagChips() {
   renderTagChipsHelper(hashtagChipsContainer, tempHashtags, (index) => {
-    tempHashtags.splice(index, 1);
+    const removed = tempHashtags.splice(index, 1)[0];
     renderHashtagChips();
+    if (removed) logDiscordActivity('BUTTON_CLICK', 'Hapus Tagar Campaign', { value: removed, info: `Menghapus tagar: ${removed}` });
   });
 }
 
 function renderMentionChips() {
   renderTagChipsHelper(mentionChipsContainer, tempMentions, (index) => {
-    tempMentions.splice(index, 1);
+    const removed = tempMentions.splice(index, 1)[0];
     renderMentionChips();
+    if (removed) logDiscordActivity('BUTTON_CLICK', 'Hapus Mention Campaign', { value: removed, info: `Menghapus mention: ${removed}` });
   });
 }
 
 function renderBrandChips() {
   renderTagChipsHelper(brandChipsContainer, tempBrands, (index) => {
-    tempBrands.splice(index, 1);
+    const removed = tempBrands.splice(index, 1)[0];
     renderBrandChips();
+    if (removed) logDiscordActivity('BUTTON_CLICK', 'Hapus Brand Keyword', { value: removed, info: `Menghapus brand: ${removed}` });
   });
 }
 
 function renderUsernameChips() {
   renderTagChipsHelper(usernameChipsContainer, tempUsernames, (index) => {
-    tempUsernames.splice(index, 1);
+    const removed = tempUsernames.splice(index, 1)[0];
     renderUsernameChips();
+    if (removed) logDiscordActivity('BUTTON_CLICK', 'Hapus Username Affiliate', { value: removed, info: `Menghapus username: ${removed}` });
   });
 }
 
@@ -554,6 +666,7 @@ function saveConfigFromForm() {
   saveCampaignConfig(updated);
   closeConfigModal();
   showToast('Pengaturan campaign berhasil disimpan untuk Kacery.');
+  logDiscordActivity('CONFIG_UPDATE', 'Pengaturan Campaign Disimpan', updated);
 
   if (sessionReports.length > 0) {
     revalidateExistingReports();
@@ -565,6 +678,7 @@ function resetConfigToDefault() {
     saveCampaignConfig(DEFAULT_CONFIG);
     openConfigModal();
     showToast('Syarat campaign telah direset ke default.');
+    logDiscordActivity('BUTTON_CLICK', 'Reset Syarat ke Default');
   }
 }
 
@@ -578,6 +692,7 @@ function exportConfigFile() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('File syarat berhasil diekspor.');
+  logDiscordActivity('BUTTON_CLICK', 'Ekspor File Syarat JSON');
 }
 
 function importConfigFile(e) {
@@ -591,6 +706,7 @@ function importConfigFile(e) {
         saveCampaignConfig(imported);
         openConfigModal();
         showToast('Syarat campaign berhasil diimpor.');
+        logDiscordActivity('BUTTON_CLICK', 'Impor File Syarat JSON', { importedName: imported.name });
       }
     } catch (err) {
       alert('File JSON tidak valid: ' + err.message);
@@ -620,6 +736,13 @@ async function handleStartValidation() {
   sessionReports = [];
   renderCards();
   updateStats();
+
+  logDiscordActivity('VALIDATION_START', 'Mulai Validasi Video', {
+    totalVideos: urls.length,
+    urls: urls.slice(0, 10),
+    campaignName: currentConfig.name,
+    aiActive: Boolean(currentConfig.brandKeywords?.length)
+  });
 
   let completed = 0;
   const total = urls.length;
@@ -673,6 +796,31 @@ async function handleStartValidation() {
   }, 2000);
 
   showToast(`Selesai memeriksa ${completed} video untuk Kacery.`);
+
+  const passCount = sessionReports.filter(r => r.overallStatus === 'PASS').length;
+  const failCount = sessionReports.filter(r => r.overallStatus === 'FAIL').length;
+  const reviewCount = sessionReports.filter(r => r.overallStatus === 'NEED REVIEW').length;
+
+  logDiscordActivity('VALIDATION_FINISH', 'Validasi Video Selesai', {
+    campaignName: currentConfig.name,
+    summary: {
+      total: sessionReports.length,
+      pass: passCount,
+      fail: failCount,
+      needReview: reviewCount
+    },
+    videoResults: sessionReports.map(r => ({
+      username: r.author?.username || 'unknown',
+      status: r.overallStatus,
+      statusLabel: r.overallStatusLabel,
+      views: r.stats?.views,
+      engagementRate: r.engagementRate?.formatted,
+      failedReasons: (r.results || []).filter(c => c.status === 'FAIL').map(c => c.name)
+    })),
+    aiSummary: sessionReports.some(r => r.aiAnalysis?.available)
+      ? `${sessionReports.filter(r => r.aiAnalysis?.available).length} video berhasil diverifikasi AI Jorje.`
+      : null
+  });
 }
 
 /**
@@ -926,6 +1074,9 @@ function createVideoCard(report, index) {
       renderCards();
       updateStats();
       showToast('Status brand video diperbarui.');
+      logDiscordActivity('BUTTON_CLICK', 'Verifikasi Manual Brand Video', {
+        info: `Verifikasi manual @${report.author?.username || 'unknown'} diubah ke: ${report.overallStatusLabel || report.overallStatus}`
+      });
     };
 
     if (cbVisual) cbVisual.addEventListener('change', handleCheck);
@@ -1013,6 +1164,9 @@ function copySingleReport(report) {
   const text = formatReportText(report);
   navigator.clipboard.writeText(text).then(() => {
     showToast('Laporan video berhasil disalin untuk Kacery.');
+    logDiscordActivity('BUTTON_CLICK', 'Salin Laporan Tunggal', {
+      info: `User menyalin laporan untuk @${report.author?.username || 'unknown'} (${report.overallStatusLabel || report.overallStatus})`
+    });
   }).catch(() => {
     showToast('Gagal menyalin ke clipboard.');
   });

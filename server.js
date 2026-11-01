@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { extractTikTokVideo } from './lib/tiktok-extractor.js';
 import { validateVideo, DEFAULT_CAMPAIGN_CONFIG } from './lib/validator.js';
 import { analyzeContentWithGemini } from './lib/gemini-analyzer.js';
+import { logActivityToDiscord } from './lib/discord-logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,24 @@ async function enrichWithGemini(report, config) {
 // API: Get default campaign config
 app.get('/api/default-campaign', (req, res) => {
   res.json({ success: true, config: DEFAULT_CAMPAIGN_CONFIG });
+});
+
+// API: Realtime Activity Logger to Discord Webhook
+app.post('/api/activity-log', (req, res) => {
+  try {
+    const eventData = req.body || {};
+    if (!eventData.clientInfo) eventData.clientInfo = {};
+    if (!eventData.clientInfo.ip) {
+      eventData.clientInfo.ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '-';
+    }
+    // Fire-and-forget: log to Discord without delaying response
+    logActivityToDiscord(eventData).catch(err => {
+      console.warn('[Activity Log API] Error:', err.message);
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(200).json({ success: true, warning: err.message });
+  }
 });
 
 // API: Single video extraction
