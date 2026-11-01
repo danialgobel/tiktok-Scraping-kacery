@@ -1,11 +1,11 @@
 // TikTok Validator Kacery - Service Worker with Auto-Update Support
-const APP_VERSION = 'v2.3.0';
+const APP_VERSION = 'v2.4.0';
 const CACHE_NAME = `kacery-validator-${APP_VERSION}`;
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/style.css',
+  '/style.css?v=2.4',
   '/app.js',
   '/manifest.json',
   '/icons/kacery-logo.png',
@@ -56,9 +56,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First strategy for application assets so updates on Vercel reflect instantly
+  // Network-First strategy: always fetch fresh from network when online
+  const fetchPromise = req.mode === 'navigate'
+    ? fetch(req, { cache: 'no-cache' })
+    : fetch(req);
+
   event.respondWith(
-    fetch(req)
+    fetchPromise
       .then((networkResponse) => {
         // If response is valid, clone and update cache in background
         if (networkResponse && networkResponse.status === 200) {

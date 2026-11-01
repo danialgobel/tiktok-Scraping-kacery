@@ -53,7 +53,7 @@ async function enrichWithGemini(report, config) {
         brandCheck.aiVerified = true;
         brandCheck.status = 'PASS';
         brandCheck.statusLabel = 'Sudah Sesuai';
-        brandCheck.evidence = `Terverifikasi AI Gemini: ${ai.summary || 'Brand terdeteksi dalam konten'}`;
+        brandCheck.evidence = `Terverifikasi AI Jorje: ${ai.summary || 'Brand terdeteksi dalam konten'}`;
         
         // Re-evaluate overall status
         const hasFail = report.results.some(r => r.status === 'FAIL');

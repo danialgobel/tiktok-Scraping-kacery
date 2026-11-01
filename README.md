@@ -17,9 +17,9 @@ Aplikasi web otomatis (Progressive Web App) khusus dirancang untuk mempermudah d
    - Menghindari kesalahan format koma/spasi.
    - Dilengkapi chip badge interaktif yang mudah dihapus (`✕`).
 
-3. **Verifikasi Konten Cerdas Berbasis Google Gemini AI**
+3. **Verifikasi Konten Cerdas AI Jorje**
    - Menganalisis konteks video dan teks caption untuk memastikan brand yang diwajibkan benar-benar dipromosikan (bukan video hiburan random).
-   - Menampilkan skor akurasi dan ringkasan ramah dalam bahasa Indonesia.
+   - Menampilkan skor akurasi dan ringkasan ramah dalam bahasa Indonesia dari asisten AI Jorje.
 
 4. **Perhitungan Engagement Rate (ER) Akurat**
    - Rumus: `ER = (Likes + Komentar + Share + Saves) / Views × 100%`.

@@ -133,9 +133,9 @@ const TOUR_STEPS = [
   },
   {
     badge: 'Langkah 4 dari 5',
-    title: 'Verifikasi Cerdas Google Gemini AI',
-    desc: 'Aplikasi didukung teknologi Google Gemini AI untuk memeriksa isi video dan caption. AI akan mengecek penyebutan brand yang dipromosikan dan menampilkan ringkasan akurasi.',
-    tip: 'Jika brand terbukti ada di video, AI otomatis memberi verifikasi tanpa Kacery harus menonton manual!'
+    title: 'Verifikasi Cerdas AI Jorje',
+    desc: 'Aplikasi didukung asisten pintar AI Jorje untuk memeriksa isi video dan caption. Jorje akan mengecek penyebutan brand yang dipromosikan dan menampilkan ringkasan akurasi.',
+    tip: 'Jika brand terbukti ada di video, AI Jorje otomatis memberi verifikasi tanpa Kacery harus menonton manual!'
   },
   {
     badge: 'Langkah 5 dari 5',
@@ -304,18 +304,6 @@ function prevTourStep() {
   }
 }
 
-/**
- * Service Worker Registration for PWA
- */
-function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.warn('Service worker registration failed:', err);
-      });
-    });
-  }
-}
 
 /**
  * Toast Notification
@@ -805,7 +793,7 @@ function createVideoCard(report, index) {
     geminiBanner = `
       <div class="gemini-analysis-badge">
         <div class="gemini-badge-header">
-          <span>Analisis AI Gemini</span>
+          <span>Analisis Jorje</span>
           <span class="gemini-score">Akurasi: ${ai.confidenceScore || 95}%</span>
         </div>
         <p class="gemini-summary-text">${escapeHtml(ai.summary || '')}</p>
@@ -1008,7 +996,7 @@ function formatReportText(report) {
   });
 
   if (report.aiAnalysis && report.aiAnalysis.available) {
-    lines.push(`- Analisis AI Gemini: ${report.aiAnalysis.summary}`);
+    lines.push(`- Analisis Jorje: ${report.aiAnalysis.summary}`);
   }
 
   lines.push(``);
