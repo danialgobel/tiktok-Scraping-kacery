@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>TikTok Validator Kacery</title>
+  <meta name="description" content="Aplikasi validator video TikTok affiliate khusus Kacery. Memeriksa followers, views, likes, tagar, mention, dan brand campaign secara otomatis.">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" href="/icons/kacery-logo.png">
+  <link rel="apple-touch-icon" href="/icons/kacery-logo.png">
+  <link rel="stylesheet" href="/style.css?v=2.3">
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Quicksand:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Responsive Main App Container -->
+  <div class="app-container">
+    
+    <!-- App Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-group">
+          <img src="/icons/kacery-logo.png" alt="Logo Kacery" class="brand-avatar-img">
+          <div class="brand-text">
+            <h1 class="brand-title">TikTok Validator <span class="highlight-name">Kacery</span></h1>
+            <p class="brand-subtitle">Asisten Pemeriksa Konten Affiliate</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="btn-start-tour" type="button" class="btn-header-action" title="Buka panduan penggunaan">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Panduan</span>
+          </button>
+          <button id="btn-open-config" type="button" class="btn-header-action" title="Atur syarat campaign">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Syarat</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Responsive Layout (Side-by-side on desktop, single column on mobile) -->
+    <main class="app-layout">
+      
+      <!-- Left Sidebar (Desktop) / Top Section (Mobile) -->
+      <aside class="layout-sidebar">
+        <!-- Friendly Greeting for Kacery -->
+        <section class="card greeting-card">
+          <strong class="greeting-title">Halo Kacery</strong>
+          <p class="greeting-desc">Masukkan link video TikTok untuk memeriksa followers, views, likes, hashtag, dan mention secara otomatis tanpa cek manual satu per satu.</p>
+        </section>
+
+        <!-- Active Campaign Summary Card -->
+        <section class="card campaign-card" id="tour-step-campaign" aria-label="Informasi Campaign Aktif">
+          <div class="card-header-row">
+            <div>
+              <span class="label-tiny">Campaign Aktif</span>
+              <strong id="badge-campaign-name" class="campaign-title-text">Campaign Vape Fumakilla</strong>
+            </div>
+            <button id="btn-quick-edit" type="button" class="btn-text-action">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>Ubah</span>
+            </button>
+          </div>
+
+          <div class="campaign-chips-stack">
+            <div class="summary-chip">
+              <span class="chip-key">Target Min</span>
+              <span id="badge-min-metrics" class="chip-val">Followers > 600 • Views >= 300 • Likes >= 50</span>
+            </div>
+            <div class="summary-chip">
+              <span class="chip-key">Wajib Tagar</span>
+              <span id="badge-hashtags" class="chip-val">3 tagar</span>
+            </div>
+            <div class="summary-chip">
+              <span class="chip-key">Wajib Mention</span>
+              <span id="badge-mentions" class="chip-val">@vape.antinyamuk.idn</span>
+            </div>
+            <div class="summary-chip">
+              <span class="chip-key">Kata Brand</span>
+              <span id="badge-brands" class="chip-val">Vape, Fumakilla</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Assistant Info Card -->
+        <section class="card info-box-card">
+          <div class="info-box-header">
+            <span class="info-box-title">Didukung Google Gemini AI</span>
+          </div>
+          <p class="info-box-desc">Sistem dilengkapi analisis AI untuk memastikan keaslian konten promosi brand affiliate dan menghitung Engagement Rate secara otomatis.</p>
+        </section>
+      </aside>
+
+      <!-- Right Main Workspace -->
+      <div class="layout-workspace">
+        
+        <!-- Input Link Card -->
+        <section class="card input-card" id="tour-step-input">
+          <div class="input-header-row">
+            <label for="tiktok-urls-input" class="input-label">Daftar Link Video TikTok</label>
+            <span class="counter-badge" id="input-count-badge">0 link</span>
+          </div>
+
+          <div class="input-wrapper">
+            <textarea
+              id="tiktok-urls-input"
+              class="textarea-links"
+              placeholder="Tempel link video TikTok di sini...&#10;Bisa 1 link atau banyak link sekaligus (satu link per baris)&#10;Contoh:&#10;https://vt.tiktok.com/ZSxxxxxx/&#10;https://www.tiktok.com/@affiliate/video/1234567890"
+              rows="4"
+              spellcheck="false"
+            ></textarea>
+          </div>
+
+          <!-- Quick Actions Row -->
+          <div class="quick-helpers" id="tour-step-helpers">
+            <button id="btn-paste-clipboard" type="button" class="btn-secondary-action">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>Tempel Link</span>
+            </button>
+            <button id="btn-demo-link" type="button" class="btn-secondary-action">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Coba Demo</span>
+            </button>
+            <button id="btn-clear-input" type="button" class="btn-secondary-action action-danger">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span>Hapus</span>
+            </button>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="submit-action-row">
+            <button id="btn-start-validation" type="button" class="btn-primary-action">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <path d="m9 11 2 2 4-4"></path>
+              </svg>
+              <span id="btn-start-text">Periksa Video Sekarang</span>
+            </button>
+            <p class="input-hint-text">Mendukung link pendek vt.tiktok.com dan link panjang www.tiktok.com</p>
+          </div>
+        </section>
+
+        <!-- Progress Tracker -->
+        <section id="progress-container" class="card progress-card" style="display: none;">
+          <div class="progress-info-row">
+            <div class="progress-label-group">
+              <div class="clean-spinner" aria-hidden="true"></div>
+              <span id="progress-text">Memeriksa video TikTok...</span>
+            </div>
+            <span id="progress-percent" class="progress-percent-val">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+          </div>
+          <p id="progress-detail" class="progress-sub-text">Menghubungkan ke TikTok...</p>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="results-container" style="display: none;">
+          
+          <!-- Summary Counters Toolbar -->
+          <div class="card results-toolbar-card" id="tour-step-results">
+            <div class="stats-summary-grid">
+              <div class="stat-box">
+                <span class="stat-number" id="stat-total">0</span>
+                <span class="stat-label">Total Video</span>
+              </div>
+              <div class="stat-box stat-pass">
+                <span class="stat-number" id="stat-pass">0</span>
+                <span class="stat-label">Sudah Sesuai</span>
+              </div>
+              <div class="stat-box stat-fail">
+                <span class="stat-number" id="stat-fail">0</span>
+                <span class="stat-label">Belum Sesuai</span>
+              </div>
+              <div class="stat-box stat-review">
+                <span class="stat-number" id="stat-review">0</span>
+                <span class="stat-label">Perlu Cek</span>
+              </div>
+            </div>
+
+            <!-- Controls Row -->
+            <div class="toolbar-controls-row">
+              <div class="filter-box">
+                <label for="filter-status" class="sr-only">Filter Status</label>
+                <select id="filter-status" class="form-select">
+                  <option value="ALL">Tampilkan Semua Status</option>
+                  <option value="PASS">Hanya yang Sudah Sesuai</option>
+                  <option value="FAIL">Hanya yang Belum Sesuai</option>
+                  <option value="NEED REVIEW">Hanya yang Perlu Dicek</option>
+                </select>
+              </div>
+
+              <div class="export-buttons-group">
+                <button id="btn-copy-all-report" type="button" class="btn-secondary-action" title="Salin laporan seluruh video">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Salin Rekap</span>
+                </button>
+                <button id="btn-export-csv" type="button" class="btn-secondary-action" title="Unduh CSV untuk Excel">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>Download CSV</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Video Cards List -->
+          <div id="video-cards-list" class="video-cards-wrapper">
+            <!-- Rendered dynamically -->
+          </div>
+        </section>
+
+        <!-- Empty State -->
+        <section id="empty-state" class="card empty-state-card">
+          <div class="empty-icon-wrap">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </div>
+          <h3 class="empty-heading">Belum Ada Video yang Diperiksa</h3>
+          <p class="empty-paragraph">Tempel link video TikTok affiliate pada kotak di atas, lalu klik <strong>Periksa Video Sekarang</strong> untuk memulai.</p>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>TikTok Affiliate Validator • Khusus Kacery</p>
+    </footer>
+
+  </div> <!-- /app-container -->
+
+  <!-- Friendly Panduan Modal (Clean, Non-Glitchy) -->
+  <div id="tour-overlay" class="modal-overlay is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="tour-title">
+    <div class="modal-dialog-box">
+      <div class="modal-header-row">
+        <span id="tour-step-badge" class="badge-step-pill">Langkah 1 dari 5</span>
+        <button id="btn-tour-close" type="button" class="btn-modal-close" aria-label="Tutup panduan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-dialog-body">
+        <h3 id="tour-title" class="dialog-heading">Selamat Datang, Kacery</h3>
+        <p id="tour-desc" class="dialog-paragraph">Aplikasi ini dibuat khusus untuk mempermudah pekerjaan Kacery dalam mengecek kelayakan video TikTok affiliate tanpa ribet membuka link satu per satu.</p>
+        
+        <div class="dialog-tip-box" id="tour-tip-box">
+          <span class="tip-title">Tips Praktis</span>
+          <p id="tour-tip-text" class="tip-desc">Kacery bisa langsung menempelkan 10-20 link sekaligus dari spreadsheet atau catatan!</p>
+        </div>
+      </div>
+
+      <div class="modal-dialog-footer">
+        <button id="btn-tour-skip" type="button" class="btn-text-muted">Tutup Panduan</button>
+        <div class="dialog-nav-buttons">
+          <button id="btn-tour-prev" type="button" class="btn-secondary-action" style="display: none;">Kembali</button>
+          <button id="btn-tour-next" type="button" class="btn-primary-action">Lanjut</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign Configuration Modal with Dynamic Tag Adders -->
+  <div id="config-modal" class="modal-overlay is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="modal-config-title">
+    <div class="modal-dialog-box modal-dialog-lg">
+      <div class="modal-header-row">
+        <div>
+          <h2 id="modal-config-title" class="dialog-heading">Pengaturan Syarat Campaign</h2>
+          <p class="dialog-subheading">Tersimpan otomatis di browser Kacery</p>
+        </div>
+        <button id="btn-close-config" type="button" class="btn-modal-close" aria-label="Tutup pengaturan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-scroll-area">
+        <form id="campaign-form" onsubmit="return false;">
+          
+          <!-- Campaign Name -->
+          <div class="form-group">
+            <label for="cfg-name" class="form-label">Nama Campaign / Merek</label>
+            <input type="text" id="cfg-name" class="form-input" placeholder="Contoh: Campaign Vape Fumakilla">
+          </div>
+
+          <!-- Target Metrics -->
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="cfg-followers" class="form-label">Min Followers (> Syarat)</label>
+              <input type="number" id="cfg-followers" class="form-input" min="0" placeholder="600">
+            </div>
+            <div class="form-group">
+              <label for="cfg-views" class="form-label">Min Views (Target)</label>
+              <input type="number" id="cfg-views" class="form-input" min="0" placeholder="300">
+            </div>
+            <div class="form-group">
+              <label for="cfg-likes" class="form-label">Min Likes (Target)</label>
+              <input type="number" id="cfg-likes" class="form-input" min="0" placeholder="50">
+            </div>
+          </div>
+
+          <!-- Hashtags Tag Adder -->
+          <div class="form-group">
+            <label class="form-label">Hashtag Wajib (#)</label>
+            <div class="tag-input-row">
+              <input type="text" id="input-new-hashtag" class="form-input tag-input-field" placeholder="Ketik tagar, misal: #VapeMAT">
+              <button type="button" id="btn-add-hashtag" class="btn-add-tag">+ Tambah</button>
+            </div>
+            <div id="hashtag-chips-container" class="tag-chips-wrapper">
+              <!-- Rendered as chips -->
+            </div>
+            <span class="field-hint">Kacery bisa tambah tagar satu per satu dengan tombol Tambah atau tekan Enter</span>
+          </div>
+
+          <!-- Mentions Tag Adder -->
+          <div class="form-group">
+            <label class="form-label">Akun Wajib Dimention (@)</label>
+            <div class="tag-input-row">
+              <input type="text" id="input-new-mention" class="form-input tag-input-field" placeholder="Ketik akun, misal: @vape.antinyamuk.idn">
+              <button type="button" id="btn-add-mention" class="btn-add-tag">+ Tambah</button>
+            </div>
+            <div id="mention-chips-container" class="tag-chips-wrapper">
+              <!-- Rendered as chips -->
+            </div>
+            <span class="field-hint">Ketik akun satu per satu tanpa khawatir salah spasi atau koma</span>
+          </div>
+
+          <!-- Brand Keywords Tag Adder -->
+          <div class="form-group">
+            <label class="form-label">Kata Kunci Brand yang Harus Disebut</label>
+            <div class="tag-input-row">
+              <input type="text" id="input-new-brand" class="form-input tag-input-field" placeholder="Ketik nama brand, misal: Fumakilla">
+              <button type="button" id="btn-add-brand" class="btn-add-tag">+ Tambah</button>
+            </div>
+            <div id="brand-chips-container" class="tag-chips-wrapper">
+              <!-- Rendered as chips -->
+            </div>
+            <span class="field-hint">Nama brand atau varian produk yang wajib ada dalam konten</span>
+          </div>
+
+          <!-- Brand Check Location -->
+          <div class="form-group">
+            <label for="cfg-brand-loc" class="form-label">Lokasi Pemeriksaan Brand</label>
+            <select id="cfg-brand-loc" class="form-select">
+              <option value="caption_or_video">Ada di Caption ATAU di Video (Rekomendasi)</option>
+              <option value="caption_only">Wajib Ada di Caption Saja</option>
+              <option value="video_only">Wajib Ada di Isi Video Saja</option>
+            </select>
+          </div>
+
+          <!-- Expected Usernames Tag Adder -->
+          <div class="form-group">
+            <label class="form-label">Daftar Username Affiliate Resmi (Opsional)</label>
+            <div class="tag-input-row">
+              <input type="text" id="input-new-username" class="form-input tag-input-field" placeholder="Ketik username affiliate, misal: affiliate_satu">
+              <button type="button" id="btn-add-username" class="btn-add-tag">+ Tambah</button>
+            </div>
+            <div id="username-chips-container" class="tag-chips-wrapper">
+              <!-- Rendered as chips -->
+            </div>
+            <span class="field-hint">Kosongkan jika semua username affiliate diterima</span>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-dialog-footer modal-footer-spaced">
+        <div class="footer-left-buttons">
+          <button id="btn-export-config" type="button" class="btn-text-action">Ekspor</button>
+          <button id="btn-import-config" type="button" class="btn-text-action">Impor</button>
+          <input type="file" id="file-import-config" accept=".json" style="display: none;">
+          <button id="btn-reset-config" type="button" class="btn-text-action text-danger">Reset Default</button>
+        </div>
+        <div class="footer-right-buttons">
+          <button id="btn-cancel-config" type="button" class="btn-secondary-action">Batal</button>
+          <button id="btn-save-config" type="button" class="btn-primary-action">Simpan Syarat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast-popup" role="status" aria-live="polite" style="display: none;">
+    <span id="toast-message">Notifikasi</span>
+  </div>
+
+  <script src="/app.js?v=2.1" type="module"></script>
+</body>
+</html>
