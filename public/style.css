@@ -657,7 +657,319 @@ body {
 }
 
 /* =========================================================
-   VIDEO CARDS STACK
+   CLEAN TABLE RESULTS (Kacery's Spreadsheet View)
+   ========================================================= */
+.results-table-container {
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.table-scroll-hint {
+  display: none;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 0.775rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+@media (max-width: 960px) {
+  .table-scroll-hint {
+    display: block;
+  }
+}
+
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kacery-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.kacery-results-table thead th {
+  background-color: #fff4f7;
+  color: var(--text-main);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0.85rem 0.85rem;
+  border-bottom: 2px solid var(--color-border);
+  user-select: none;
+}
+
+.kacery-results-table thead th.th-num { width: 44px; text-align: center; }
+.kacery-results-table thead th.th-status { width: 120px; text-align: center; }
+.kacery-results-table thead th.th-creator { min-width: 170px; }
+.kacery-results-table thead th.th-metric { text-align: right; min-width: 95px; }
+.kacery-results-table thead th.th-tags { min-width: 220px; white-space: normal; }
+.kacery-results-table thead th.th-brand { min-width: 135px; text-align: center; }
+.kacery-results-table thead th.th-actions { width: 110px; text-align: center; }
+
+/* Table Body Rows */
+.kacery-results-table tbody tr.tbl-row-main {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.kacery-results-table tbody tr.tbl-row-main:hover {
+  background-color: #fff9fb;
+}
+
+.kacery-results-table tbody tr.tbl-row-main.is-expanded {
+  background-color: #fff0f4;
+}
+
+.kacery-results-table tbody td {
+  padding: 0.8rem 0.85rem;
+  vertical-align: middle;
+}
+
+.kacery-results-table tbody td.td-num {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.kacery-results-table tbody td.td-status {
+  text-align: center;
+}
+
+.kacery-results-table tbody td.td-metric {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metric Status Colors (Tanpa kata-kata panjang, cukup warna & tanda ⚠️) */
+.tbl-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.tbl-metric.metric-ok {
+  color: #047857;
+}
+
+.tbl-metric.metric-fail {
+  color: #e11d48;
+  background-color: #ffeef2;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid #fecdd3;
+}
+
+.tbl-metric.metric-er {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+/* Creator Cell */
+.creator-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.creator-avatar-mini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.creator-avatar-placeholder {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border: 1px solid #fecdd3;
+  flex-shrink: 0;
+}
+
+.creator-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.creator-username-link {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 0.925rem;
+  transition: color 0.15s ease;
+}
+
+.creator-username-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.creator-nickname {
+  font-size: 0.725rem;
+  color: var(--text-muted);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tag & Brand Badges (Mini Chips) */
+.tags-cell-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  white-space: normal;
+  max-width: 260px;
+}
+
+.badge-tag-pass {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-full);
+  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+.badge-tag-fail {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecdd3;
+  border-radius: var(--radius-full);
+  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  word-break: break-word;
+}
+
+.badge-tag-review {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-full);
+  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+/* Action Buttons */
+.tbl-actions-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.btn-tbl-action {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: #ffffff;
+  color: var(--text-body);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.btn-tbl-action:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.btn-tbl-action.is-expanded svg {
+  transform: rotate(180deg);
+}
+
+/* Expandable Detail Sub-row */
+.kacery-results-table tbody tr.tbl-row-detail {
+  background-color: #fdfafb;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.kacery-results-table tbody tr.tbl-row-detail.is-hidden {
+  display: none;
+}
+
+.detail-sub-wrapper {
+  padding: 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .detail-sub-wrapper {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.detail-left-col,
+.detail-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.empty-table-cell {
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   LEGACY VIDEO CARDS STACK (FOR BACKWARD COMPATIBILITY)
    ========================================================= */
 .video-cards-wrapper {
   display: flex;

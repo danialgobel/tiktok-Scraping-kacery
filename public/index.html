@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="/icons/kacery-logo.png">
   <link rel="apple-touch-icon" href="/icons/kacery-logo.png">
-  <link rel="stylesheet" href="/style.css?v=2.6">
+  <link rel="stylesheet" href="/style.css?v=2.7">
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,9 +235,32 @@
             </div>
           </div>
 
-          <!-- Video Cards List -->
-          <div id="video-cards-list" class="video-cards-wrapper">
-            <!-- Rendered dynamically -->
+          <!-- Video Results Table Container (Clean Spreadsheet View) -->
+          <div class="results-table-container">
+            <div class="table-scroll-hint">
+              <span>👉 Geser tabel ke samping untuk melihat seluruh metrik</span>
+            </div>
+            <div class="table-responsive-wrapper">
+              <table class="kacery-results-table">
+                <thead>
+                  <tr>
+                    <th class="th-num">No</th>
+                    <th class="th-status">Status</th>
+                    <th class="th-creator">Kreator</th>
+                    <th class="th-metric">Views</th>
+                    <th class="th-metric">Likes</th>
+                    <th class="th-metric">Followers</th>
+                    <th class="th-metric">ER (%)</th>
+                    <th class="th-tags">Tagar & Mention</th>
+                    <th class="th-brand">Brand (Jorje)</th>
+                    <th class="th-actions">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="video-cards-list">
+                  <!-- Rendered dynamically as table rows -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -423,6 +446,6 @@
     <span id="toast-message">Notifikasi</span>
   </div>
 
-  <script src="/app.js?v=2.6" type="module"></script>
+  <script src="/app.js?v=2.7" type="module"></script>
 </body>
 </html>

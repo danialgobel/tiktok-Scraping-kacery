@@ -847,7 +847,7 @@ function updateStats() {
 }
 
 /**
- * Render Video Result Cards
+ * Render Video Result Rows in Table (Spreadsheet View)
  */
 function renderCards() {
   videoCardsList.innerHTML = '';
@@ -858,16 +858,16 @@ function renderCards() {
   });
 
   if (filtered.length === 0 && sessionReports.length > 0) {
-    const emptyNotice = document.createElement('div');
-    emptyNotice.className = 'card empty-state-card';
-    emptyNotice.innerHTML = `<p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p>`;
-    videoCardsList.appendChild(emptyNotice);
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = `<td colspan="10" class="empty-table-cell"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></td>`;
+    videoCardsList.appendChild(emptyRow);
     return;
   }
 
   filtered.forEach((report, index) => {
-    const card = createVideoCard(report, index);
-    videoCardsList.appendChild(card);
+    const [mainRow, detailRow] = createVideoTableRows(report, index);
+    videoCardsList.appendChild(mainRow);
+    videoCardsList.appendChild(detailRow);
   });
 }
 
@@ -878,61 +878,151 @@ function getFriendlyStatusLabel(status) {
 }
 
 /**
- * Create DOM element for a Video Card
+ * Create DOM Elements for a Table Row and its Expandable Detail Row
  */
-function createVideoCard(report, index) {
-  const card = document.createElement('article');
-  const statusKey = (report.overallStatus || 'fail').toLowerCase().replace(/\s+/g, '-');
-  card.className = 'video-result-card';
-
+function createVideoTableRows(report, index) {
   const author = report.author || {};
   const stats = report.stats || {};
   const er = report.engagementRate || {};
   const username = author.username || 'Tidak diketahui';
   const videoUrl = report.videoUrl || '';
+  const statusKey = (report.overallStatus || 'fail').toLowerCase().replace(/\s+/g, '-');
   const statusLabel = report.overallStatusLabel || getFriendlyStatusLabel(report.overallStatus);
+  const results = report.results || [];
 
-  // Top Author Header
-  const headerHtml = `
-    <div class="card-header-mobile">
-      <div class="author-info-block">
-        <div class="author-username-row">
-          <span class="author-username">@${escapeHtml(username)}</span>
+  // Metrics Evaluation
+  const viewsTarget = currentConfig.minViews ?? 0;
+  const likesTarget = currentConfig.minLikes ?? 0;
+  const followersTarget = currentConfig.minFollowers ?? 0;
+
+  let viewsHtml = '<span class="text-muted">-</span>';
+  let likesHtml = '<span class="text-muted">-</span>';
+  let followersHtml = '<span class="text-muted">-</span>';
+  let erHtml = '<span class="text-muted">-</span>';
+
+  if (report.success !== false) {
+    const viewsOk = (stats.views ?? 0) >= viewsTarget;
+    viewsHtml = viewsOk
+      ? `<span class="tbl-metric metric-ok">${formatNum(stats.views)}</span>`
+      : `<span class="tbl-metric metric-fail" title="Kurang dari target minimal ${formatNum(viewsTarget)}">${formatNum(stats.views)} ⚠️</span>`;
+
+    const likesOk = (stats.likes ?? 0) >= likesTarget;
+    likesHtml = likesOk
+      ? `<span class="tbl-metric metric-ok">${formatNum(stats.likes)}</span>`
+      : `<span class="tbl-metric metric-fail" title="Kurang dari target minimal ${formatNum(likesTarget)}">${formatNum(stats.likes)} ⚠️</span>`;
+
+    const followersOk = (author.followerCount ?? 0) >= followersTarget;
+    followersHtml = followersOk
+      ? `<span class="tbl-metric metric-ok">${formatNum(author.followerCount)}</span>`
+      : `<span class="tbl-metric metric-fail" title="Kurang dari target minimal ${formatNum(followersTarget)}">${formatNum(author.followerCount)} ⚠️</span>`;
+
+    erHtml = `<span class="tbl-metric metric-er">${er.formatted || '-'}</span>`;
+  }
+
+  // Tagar & Mention Evaluation
+  let tagBadges = [];
+  if (report.success === false) {
+    tagBadges.push(`<span class="badge-tag-fail" title="Gagal mengekstrak video">❌ Gagal Ambil Data</span>`);
+  } else {
+    const hashtagCheck = results.find(r => r.id === 'hashtags');
+    const mentionCheck = results.find(r => r.id === 'mentions');
+    const missingTags = hashtagCheck?.missing || [];
+    const missingMentions = mentionCheck?.missing || [];
+
+    if (missingTags.length > 0) {
+      tagBadges.push(`<span class="badge-tag-fail" title="Tagar wajib tidak ditemukan">❌ Kurang: ${escapeHtml(missingTags.join(' '))}</span>`);
+    } else if ((currentConfig.requiredHashtags || []).length > 0) {
+      tagBadges.push(`<span class="badge-tag-pass">✅ Tagar Lengkap</span>`);
+    }
+
+    if (missingMentions.length > 0) {
+      tagBadges.push(`<span class="badge-tag-fail" title="Mention wajib tidak ditemukan">❌ Kurang: ${escapeHtml(missingMentions.join(' '))}</span>`);
+    } else if ((currentConfig.requiredMentions || []).length > 0) {
+      tagBadges.push(`<span class="badge-tag-pass">✅ Mention Ada</span>`);
+    }
+
+    if (tagBadges.length === 0) {
+      tagBadges.push(`<span class="text-muted" style="font-size:0.75rem;">-</span>`);
+    }
+  }
+
+  // Brand & AI Jorje Evaluation
+  let brandHtml = `<span class="text-muted" style="font-size:0.75rem;">-</span>`;
+  if (report.success === false) {
+    brandHtml = `<span class="badge-tag-fail" title="${escapeHtml(report.error || 'Video tidak dapat diakses')}">❌ Error</span>`;
+  } else if ((currentConfig.brandKeywords || []).length > 0) {
+    const brandCheck = results.find(r => r.id === 'brand_keywords');
+    if (brandCheck) {
+      if (brandCheck.status === 'PASS') {
+        brandHtml = `<span class="badge-tag-pass" title="${escapeHtml(brandCheck.evidence || 'Brand terverifikasi')}">✅ Terdeteksi</span>`;
+      } else if (brandCheck.status === 'NEED REVIEW') {
+        brandHtml = `<span class="badge-tag-review" title="Cek video secara manual">⚠️ Perlu Cek</span>`;
+      } else {
+        brandHtml = `<span class="badge-tag-fail" title="Brand tidak ditemukan dalam caption / video">❌ Tidak Ada</span>`;
+      }
+    }
+  }
+
+  // 1. Create Main Row (<tr>)
+  const mainRow = document.createElement('tr');
+  mainRow.className = `tbl-row-main row-status-${statusKey}`;
+  mainRow.setAttribute('data-index', index);
+
+  mainRow.innerHTML = `
+    <td class="td-num">${index + 1}</td>
+    <td class="td-status">
+      <span class="status-pill ${statusKey}">${escapeHtml(statusLabel)}</span>
+    </td>
+    <td class="td-creator">
+      <div class="creator-cell">
+        ${author.avatarThumb ? `<img src="${escapeHtml(author.avatarThumb)}" alt="${escapeHtml(username)}" class="creator-avatar-mini" loading="lazy" onerror="this.style.display='none'">` : `<div class="creator-avatar-placeholder">${username.charAt(0).toUpperCase()}</div>`}
+        <div class="creator-info">
+          <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="creator-username-link" title="Buka video TikTok di tab baru" onclick="event.stopPropagation()">@${escapeHtml(username)}</a>
+          <span class="creator-nickname">${escapeHtml(author.nickname || '')}</span>
         </div>
-        <span class="author-id-text">${escapeHtml(author.nickname || '')} ${report.videoId ? '• ID: ' + escapeHtml(report.videoId) : ''}</span>
       </div>
-      <span class="status-pill ${statusKey}">
-        ${escapeHtml(statusLabel)}
-      </span>
-    </div>
+    </td>
+    <td class="td-metric">${viewsHtml}</td>
+    <td class="td-metric">${likesHtml}</td>
+    <td class="td-metric">${followersHtml}</td>
+    <td class="td-metric">${erHtml}</td>
+    <td class="td-tags">
+      <div class="tags-cell-wrapper">
+        ${tagBadges.join('')}
+      </div>
+    </td>
+    <td class="td-brand">${brandHtml}</td>
+    <td class="td-actions">
+      <div class="tbl-actions-group">
+        <button type="button" class="btn-tbl-action btn-copy-row" title="Salin format laporan WhatsApp" data-index="${index}" onclick="event.stopPropagation()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+        <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="btn-tbl-action" title="Buka TikTok asli" onclick="event.stopPropagation()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+        <button type="button" class="btn-tbl-action btn-toggle-detail" title="Buka detail caption & video" data-index="${index}" onclick="event.stopPropagation()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      </div>
+    </td>
   `;
 
-  // Metrics Strip
-  const metricsHtml = `
-    <div class="metrics-strip-mobile">
-      <div class="metric-cell">
-        <span class="metric-cell-label">Followers</span>
-        <span class="metric-cell-val">${formatNum(author.followerCount)}</span>
-      </div>
-      <div class="metric-cell">
-        <span class="metric-cell-label">Views</span>
-        <span class="metric-cell-val">${formatNum(stats.views)}</span>
-      </div>
-      <div class="metric-cell">
-        <span class="metric-cell-label">Likes</span>
-        <span class="metric-cell-val">${formatNum(stats.likes)}</span>
-      </div>
-    </div>
-    <div class="metrics-strip-sub">
-      <span>Komentar: <strong>${formatNum(stats.comments)}</strong></span>
-      <span>•</span>
-      <span>Share: <strong>${formatNum(stats.shares)}</strong></span>
-      <span>•</span>
-      <span>Saves: <strong>${formatNum(stats.saves)}</strong></span>
-      <span>•</span>
-      <span>ER: <strong>${er.formatted || 'N/A'}</strong></span>
-    </div>
-  `;
+  // 2. Create Detail Row (<tr>)
+  const detailRow = document.createElement('tr');
+  detailRow.className = 'tbl-row-detail is-hidden';
+  detailRow.id = `detail-row-${index}`;
+
+  // Highlighted Caption
+  const highlightedCaption = highlightCaption(report.caption || '', currentConfig);
 
   // Gemini AI Analysis Banner
   let geminiBanner = '';
@@ -941,7 +1031,7 @@ function createVideoCard(report, index) {
     geminiBanner = `
       <div class="gemini-analysis-badge">
         <div class="gemini-badge-header">
-          <span>Analisis Jorje</span>
+          <span>🤖 Analisis Jorje</span>
           <span class="gemini-score">Akurasi: ${ai.confidenceScore || 95}%</span>
         </div>
         <p class="gemini-summary-text">${escapeHtml(ai.summary || '')}</p>
@@ -949,42 +1039,7 @@ function createVideoCard(report, index) {
     `;
   }
 
-  // Mobile Checklist Stack
-  const checklistItems = (report.results || []).map(check => {
-    const checkStatus = check.status.toLowerCase().replace(/\s+/g, '-');
-    const checkLabel = check.statusLabel || getFriendlyStatusLabel(check.status);
-    return `
-      <div class="check-item-mobile status-${checkStatus}">
-        <div class="check-item-header">
-          <span class="check-item-name">${escapeHtml(check.name)}</span>
-          <span class="status-pill ${checkStatus}">${escapeHtml(checkLabel)}</span>
-        </div>
-        <div class="check-item-comparison">
-          <span class="check-val-target">Syarat: ${escapeHtml(check.expectedValue || '-')}</span>
-          <span>•</span>
-          <span class="check-val-actual">Hasil: ${escapeHtml(check.actualValue || '-')}</span>
-        </div>
-        <div class="check-item-evidence">${escapeHtml(check.evidence || '')}</div>
-      </div>
-    `;
-  }).join('');
-
-  const checklistBlock = `
-    <div class="checklist-mobile-stack">
-      ${checklistItems.length ? checklistItems : '<p class="text-muted">Tidak ada rincian data</p>'}
-    </div>
-  `;
-
-  // Caption Block
-  const highlightedCaption = highlightCaption(report.caption || '', currentConfig);
-  const captionBlock = `
-    <div class="caption-card-block">
-      <span class="caption-block-label">Caption Video</span>
-      <div class="caption-content">${highlightedCaption || '<em class="text-muted">(Tidak ada caption)</em>'}</div>
-    </div>
-  `;
-
-  // Video Preview & Manual Verification
+  // Video preview block
   let mediaBlock = '';
   if (report.media?.videoUrl) {
     mediaBlock = `
@@ -1012,46 +1067,52 @@ function createVideoCard(report, index) {
     `;
   }
 
-  // Card Footer Actions
-  const footerHtml = `
-    <div class="card-actions-footer">
-      <button type="button" class="btn-card-action btn-copy-card" data-index="${index}">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-        <span>Salin Laporan</span>
-      </button>
-      <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="btn-card-action">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <line x1="10" y1="14" x2="21" y2="3"></line>
-        </svg>
-        <span>Buka TikTok</span>
-      </a>
-    </div>
+  detailRow.innerHTML = `
+    <td colspan="10" style="padding: 0;">
+      <div class="detail-sub-wrapper">
+        <div class="detail-left-col">
+          <div class="caption-card-block">
+            <span class="caption-block-label">Caption Video & Hashtag</span>
+            <div class="caption-content">${highlightedCaption || (report.error ? `<span class="text-danger">${escapeHtml(report.error)}</span>` : '<em class="text-muted">(Tidak ada caption)</em>')}</div>
+          </div>
+          ${report.success !== false ? `
+            <div class="metrics-strip-sub" style="justify-content: flex-start; padding: 0.5rem 0;">
+              <span>Komentar: <strong>${formatNum(stats.comments)}</strong></span>
+              <span>•</span>
+              <span>Share: <strong>${formatNum(stats.shares)}</strong></span>
+              <span>•</span>
+              <span>Saves: <strong>${formatNum(stats.saves)}</strong></span>
+            </div>
+          ` : ''}
+          ${geminiBanner}
+        </div>
+        <div class="detail-right-col">
+          ${mediaBlock || '<p class="text-muted" style="font-size: 0.8rem; padding: 1rem 0;">Preview video langsung tidak tersedia (silakan buka link TikTok asli).</p>'}
+        </div>
+      </div>
+    </td>
   `;
 
-  card.innerHTML = `
-    ${headerHtml}
-    ${metricsHtml}
-    ${geminiBanner}
-    ${checklistBlock}
-    ${captionBlock}
-    ${mediaBlock}
-    ${footerHtml}
-  `;
+  // Toggle detail handler
+  const toggleBtn = mainRow.querySelector('.btn-toggle-detail');
+  const toggleDetail = () => {
+    const isHidden = detailRow.classList.toggle('is-hidden');
+    mainRow.classList.toggle('is-expanded', !isHidden);
+    toggleBtn.classList.toggle('is-expanded', !isHidden);
+  };
 
-  // Attach copy listener
-  const copyBtn = card.querySelector('.btn-copy-card');
+  mainRow.addEventListener('click', toggleDetail);
+  toggleBtn.addEventListener('click', toggleDetail);
+
+  // Copy listener
+  const copyBtn = mainRow.querySelector('.btn-copy-row');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => copySingleReport(report));
   }
 
   // Attach manual audio/visual verification listeners
-  const cbVisual = card.querySelector('.cb-brand-visual');
-  const cbAudio = card.querySelector('.cb-brand-audio');
+  const cbVisual = detailRow.querySelector('.cb-brand-visual');
+  const cbAudio = detailRow.querySelector('.cb-brand-audio');
   if (cbVisual || cbAudio) {
     const handleCheck = () => {
       const visualFound = cbVisual ? cbVisual.checked : false;
@@ -1083,7 +1144,7 @@ function createVideoCard(report, index) {
     if (cbAudio) cbAudio.addEventListener('change', handleCheck);
   }
 
-  return card;
+  return [mainRow, detailRow];
 }
 
 /**
