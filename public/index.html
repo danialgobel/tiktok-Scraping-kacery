@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="/icons/kacery-logo.png">
   <link rel="apple-touch-icon" href="/icons/kacery-logo.png">
-  <link rel="stylesheet" href="/style.css?v=2.7">
+  <link rel="stylesheet" href="/style.css?v=2.8">
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -216,6 +216,14 @@
               </div>
 
               <div class="export-buttons-group">
+                <button id="btn-export-image" type="button" class="btn-primary-action btn-sm-action" title="Unduh gambar infografis laporan (PNG)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                  <span>Download Gambar (PNG)</span>
+                </button>
                 <button id="btn-copy-all-report" type="button" class="btn-secondary-action" title="Salin laporan seluruh video">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -235,18 +243,35 @@
             </div>
           </div>
 
-          <!-- Video Results Table Container (Clean Spreadsheet View) -->
-          <div class="results-table-container">
+          <!-- Visual Infographic Report Board (Tampilan Gambar & Tabel untuk Kacery) -->
+          <div class="infographic-report-board" id="infographic-board">
+            
+            <!-- Infographic Header Banner -->
+            <div class="report-board-header">
+              <div class="board-branding">
+                <img src="/icons/kacery-logo.png" alt="Logo Kacery" class="board-logo-img">
+                <div class="board-title-group">
+                  <h3 class="board-title">Laporan Validasi Konten Affiliate</h3>
+                  <p class="board-subtitle" id="board-campaign-info">Campaign Aktif • Khusus Kacery</p>
+                </div>
+              </div>
+              <div class="board-meta-tag">
+                <span class="board-live-pill">LIVE REPORT</span>
+                <span id="board-report-date" class="board-date-text">WIB</span>
+              </div>
+            </div>
+
             <div class="table-scroll-hint">
               <span>👉 Geser tabel ke samping untuk melihat seluruh metrik</span>
             </div>
+
             <div class="table-responsive-wrapper">
               <table class="kacery-results-table">
                 <thead>
                   <tr>
                     <th class="th-num">No</th>
                     <th class="th-status">Status</th>
-                    <th class="th-creator">Kreator</th>
+                    <th class="th-video">Video & Kreator</th>
                     <th class="th-metric">Views</th>
                     <th class="th-metric">Likes</th>
                     <th class="th-metric">Followers</th>
@@ -257,9 +282,14 @@
                   </tr>
                 </thead>
                 <tbody id="video-cards-list">
-                  <!-- Rendered dynamically as table rows -->
+                  <!-- Rendered dynamically as visual table rows with cover thumbnail -->
                 </tbody>
               </table>
+            </div>
+
+            <!-- Infographic Board Footer -->
+            <div class="report-board-footer">
+              <span>🌸 TikTok Validator Kacery • Terverifikasi Otomatis oleh AI Jorje</span>
             </div>
           </div>
         </section>
@@ -446,6 +476,6 @@
     <span id="toast-message">Notifikasi</span>
   </div>
 
-  <script src="/app.js?v=2.7" type="module"></script>
+  <script src="/app.js?v=2.8" type="module"></script>
 </body>
 </html>

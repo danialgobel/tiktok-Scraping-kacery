@@ -1,12 +1,12 @@
 // TikTok Validator Kacery - Service Worker with Auto-Update Support
-const APP_VERSION = 'v2.7.0';
+const APP_VERSION = 'v2.8.0';
 const CACHE_NAME = `kacery-validator-${APP_VERSION}`;
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=2.7',
-  '/app.js?v=2.7',
+  '/style.css?v=2.8',
+  '/app.js?v=2.8',
   '/manifest.json',
   '/icons/kacery-logo.png',
   '/favicon.png'

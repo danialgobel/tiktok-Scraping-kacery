@@ -52,6 +52,9 @@ const videoCardsList = document.getElementById('video-cards-list');
 const filterStatus = document.getElementById('filter-status');
 const btnCopyAllReport = document.getElementById('btn-copy-all-report');
 const btnExportCsv = document.getElementById('btn-export-csv');
+const btnExportImage = document.getElementById('btn-export-image');
+const boardCampaignInfo = document.getElementById('board-campaign-info');
+const boardReportDate = document.getElementById('board-report-date');
 
 const statTotal = document.getElementById('stat-total');
 const statPass = document.getElementById('stat-pass');
@@ -289,6 +292,15 @@ function init() {
       info: `User mengunduh rekap CSV untuk ${sessionReports.length} video`
     });
   });
+
+  if (btnExportImage) {
+    btnExportImage.addEventListener('click', () => {
+      exportReportAsImage();
+      logDiscordActivity('BUTTON_CLICK', 'Unduh Gambar Laporan (PNG)', {
+        info: `User mengunduh gambar laporan infografis untuk ${sessionReports.length} video`
+      });
+    });
+  }
 
   // Config Modal Handlers
   btnOpenConfig.addEventListener('click', () => {
@@ -847,10 +859,26 @@ function updateStats() {
 }
 
 /**
- * Render Video Result Rows in Table (Spreadsheet View)
+ * Render Video Result Rows in Table (Visual Infographic View)
  */
 function renderCards() {
   videoCardsList.innerHTML = '';
+
+  if (boardCampaignInfo) {
+    boardCampaignInfo.textContent = `Campaign: ${currentConfig.name || 'Default'} • Khusus Kacery`;
+  }
+  if (boardReportDate) {
+    try {
+      const now = new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Asia/Jakarta'
+      }).format(new Date());
+      boardReportDate.textContent = `${now} WIB`;
+    } catch (e) {
+      boardReportDate.textContent = 'WIB';
+    }
+  }
 
   const filtered = sessionReports.filter(report => {
     if (activeFilter === 'ALL') return true;
@@ -878,7 +906,7 @@ function getFriendlyStatusLabel(status) {
 }
 
 /**
- * Create DOM Elements for a Table Row and its Expandable Detail Row
+ * Create DOM Elements for a Visual Table Row and its Expandable Detail Row
  */
 function createVideoTableRows(report, index) {
   const author = report.author || {};
@@ -963,7 +991,7 @@ function createVideoTableRows(report, index) {
     }
   }
 
-  // 1. Create Main Row (<tr>)
+  // 1. Create Main Row (<tr>) with Video Cover Thumbnail
   const mainRow = document.createElement('tr');
   mainRow.className = `tbl-row-main row-status-${statusKey}`;
   mainRow.setAttribute('data-index', index);
@@ -973,12 +1001,18 @@ function createVideoTableRows(report, index) {
     <td class="td-status">
       <span class="status-pill ${statusKey}">${escapeHtml(statusLabel)}</span>
     </td>
-    <td class="td-creator">
-      <div class="creator-cell">
-        ${author.avatarThumb ? `<img src="${escapeHtml(author.avatarThumb)}" alt="${escapeHtml(username)}" class="creator-avatar-mini" loading="lazy" onerror="this.style.display='none'">` : `<div class="creator-avatar-placeholder">${username.charAt(0).toUpperCase()}</div>`}
-        <div class="creator-info">
-          <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="creator-username-link" title="Buka video TikTok di tab baru" onclick="event.stopPropagation()">@${escapeHtml(username)}</a>
-          <span class="creator-nickname">${escapeHtml(author.nickname || '')}</span>
+    <td class="td-video">
+      <div class="video-cell-card">
+        <div class="video-cover-mini-wrap" title="Klik baris untuk lihat preview video">
+          ${report.media?.coverUrl ? `<img src="${escapeHtml(report.media.coverUrl)}" alt="Cover" class="video-cover-mini-img" loading="lazy" onerror="this.src='/icons/kacery-logo.png'">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:16px;">🎬</div>`}
+          <span class="video-play-tag">▶</span>
+        </div>
+        <div class="video-meta-block">
+          <div class="video-creator-row">
+            <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="video-creator-link" title="Buka video TikTok di tab baru" onclick="event.stopPropagation()">@${escapeHtml(username)}</a>
+          </div>
+          <span class="video-creator-nickname">${escapeHtml(author.nickname || '')}</span>
+          ${report.caption ? `<span class="video-caption-teaser" title="${escapeHtml(report.caption)}">${escapeHtml(report.caption.slice(0, 32))}${report.caption.length > 32 ? '…' : ''}</span>` : ''}
         </div>
       </div>
     </td>
@@ -1308,6 +1342,251 @@ function exportReportsToCsv() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('File CSV berhasil diunduh.');
+}
+
+/**
+ * Export All Reports as an Infographic PNG Image (Gambar Laporan untuk Kacery)
+ */
+function exportReportAsImage() {
+  if (sessionReports.length === 0) {
+    showToast('Belum ada data untuk diunduh ya Kacery.');
+    return;
+  }
+
+  const reports = sessionReports;
+  const passCount = reports.filter(r => r.overallStatus === 'PASS').length;
+  const failCount = reports.filter(r => r.overallStatus === 'FAIL').length;
+  const reviewCount = reports.filter(r => r.overallStatus === 'NEED REVIEW').length;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const width = 1200;
+  const headerHeight = 200;
+  const colHeaderHeight = 48;
+  const rowHeight = 64;
+  const footerHeight = 60;
+  const height = headerHeight + colHeaderHeight + (reports.length * rowHeight) + footerHeight;
+
+  // Hi-DPI scaling for crisp text
+  const scale = 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  ctx.scale(scale, scale);
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  // Header Banner
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, '#fff1f4');
+  gradient.addColorStop(1, '#ffe4eb');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, headerHeight);
+
+  // Bottom border of banner
+  ctx.strokeStyle = '#fecdd3';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, headerHeight);
+  ctx.lineTo(width, headerHeight);
+  ctx.stroke();
+
+  // Header Title
+  ctx.fillStyle = '#881337';
+  ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('🌸 TIKTOK VALIDATOR KACERY', 40, 52);
+
+  // Subtitle
+  ctx.fillStyle = '#9f1239';
+  ctx.font = '600 15px "Plus Jakarta Sans", sans-serif';
+  let nowStr = 'WIB';
+  try {
+    nowStr = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date()) + ' WIB';
+  } catch (e) {}
+  ctx.fillText(`Laporan Campaign: ${currentConfig.name || 'Default'} • ${nowStr}`, 40, 85);
+
+  // Helper: Draw Pill Badge
+  const drawPill = (text, bg, fg, x, y, w, h) => {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, h / 2);
+    ctx.fill();
+    ctx.fillStyle = fg;
+    ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x + w / 2, y + h / 2 + 5);
+    ctx.textAlign = 'left';
+  };
+
+  drawPill(`Total: ${reports.length} Video`, '#ffffff', '#0f172a', 40, 120, 140, 36);
+  drawPill(`✅ Sudah Sesuai: ${passCount}`, '#ecfdf5', '#047857', 195, 120, 175, 36);
+  drawPill(`❌ Belum Sesuai: ${failCount}`, '#fef2f2', '#b91c1c', 385, 120, 175, 36);
+  if (reviewCount > 0) {
+    drawPill(`⚠️ Perlu Cek: ${reviewCount}`, '#fffbeb', '#b45309', 575, 120, 150, 36);
+  }
+
+  // Table Column Headers
+  const yThead = headerHeight;
+  ctx.fillStyle = '#fff8fa';
+  ctx.fillRect(0, yThead, width, colHeaderHeight);
+  ctx.strokeStyle = '#fecdd3';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, yThead + colHeaderHeight);
+  ctx.lineTo(width, yThead + colHeaderHeight);
+  ctx.stroke();
+
+  // Columns X coordinates
+  const cols = [
+    { title: 'NO', x: 40, w: 40, align: 'center' },
+    { title: 'STATUS', x: 95, w: 120, align: 'center' },
+    { title: 'KREATOR', x: 235, w: 220, align: 'left' },
+    { title: 'VIEWS', x: 490, w: 90, align: 'right' },
+    { title: 'LIKES', x: 600, w: 80, align: 'right' },
+    { title: 'ER (%)', x: 700, w: 80, align: 'right' },
+    { title: 'TAGAR & MENTION', x: 810, w: 220, align: 'left' },
+    { title: 'BRAND (JORJE)', x: 1050, w: 110, align: 'center' },
+  ];
+
+  ctx.fillStyle = '#475569';
+  ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+  cols.forEach(c => {
+    if (c.align === 'center') {
+      ctx.textAlign = 'center';
+      ctx.fillText(c.title, c.x + c.w / 2, yThead + 29);
+    } else if (c.align === 'right') {
+      ctx.textAlign = 'right';
+      ctx.fillText(c.title, c.x + c.w, yThead + 29);
+    } else {
+      ctx.textAlign = 'left';
+      ctx.fillText(c.title, c.x, yThead + 29);
+    }
+  });
+
+  // Draw Rows
+  reports.forEach((r, i) => {
+    const yRow = yThead + colHeaderHeight + (i * rowHeight);
+
+    // Alternating zebra row
+    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#fff9fb';
+    ctx.fillRect(0, yRow, width, rowHeight);
+
+    // Border bottom
+    ctx.strokeStyle = '#fde2e7';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, yRow + rowHeight);
+    ctx.lineTo(width, yRow + rowHeight);
+    ctx.stroke();
+
+    // No
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(i + 1), 40 + 20, yRow + 38);
+
+    // Status Pill
+    const isPass = r.overallStatus === 'PASS';
+    const isFail = r.overallStatus === 'FAIL';
+    const pillBg = isPass ? '#ecfdf5' : (isFail ? '#fef2f2' : '#fffbeb');
+    const pillFg = isPass ? '#047857' : (isFail ? '#b91c1c' : '#b45309');
+    const pillText = isPass ? 'Sudah Sesuai' : (isFail ? 'Belum Sesuai' : 'Perlu Cek');
+    drawPill(pillText, pillBg, pillFg, 95, yRow + 17, 120, 30);
+
+    // Creator Username
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'left';
+    const uText = `@${r.author?.username || 'unknown'}`;
+    ctx.fillText(uText.length > 18 ? uText.slice(0, 17) + '…' : uText, 235, yRow + 38);
+
+    // Views
+    const vVal = r.stats?.views ?? 0;
+    const vPass = vVal >= (currentConfig.minViews || 0);
+    ctx.fillStyle = vPass ? '#047857' : '#e11d48';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(formatNum(vVal) + (vPass ? '' : ' ⚠️'), 490 + 90, yRow + 38);
+
+    // Likes
+    const lVal = r.stats?.likes ?? 0;
+    const lPass = lVal >= (currentConfig.minLikes || 0);
+    ctx.fillStyle = lPass ? '#047857' : '#e11d48';
+    ctx.fillText(formatNum(lVal), 600 + 80, yRow + 38);
+
+    // ER
+    ctx.fillStyle = '#e11d48';
+    ctx.fillText(r.engagementRate?.formatted || '-', 700 + 80, yRow + 38);
+
+    // Tagar & Mention
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+    const hCheck = (r.results || []).find(c => c.id === 'hashtags');
+    const mCheck = (r.results || []).find(c => c.id === 'mentions');
+    const hMissing = hCheck?.missing || [];
+    const mMissing = mCheck?.missing || [];
+
+    if (hMissing.length > 0 || mMissing.length > 0) {
+      ctx.fillStyle = '#b91c1c';
+      const missText = `❌ Kurang: ${[...hMissing, ...mMissing].join(' ')}`;
+      ctx.fillText(missText.length > 25 ? missText.slice(0, 24) + '…' : missText, 810, yRow + 38);
+    } else {
+      ctx.fillStyle = '#047857';
+      ctx.fillText('✅ Lengkap', 810, yRow + 38);
+    }
+
+    // Brand (Jorje)
+    const bCheck = (r.results || []).find(c => c.id === 'brand_keywords');
+    ctx.textAlign = 'center';
+    if (bCheck?.status === 'PASS') {
+      ctx.fillStyle = '#047857';
+      ctx.fillText('✅ Terdeteksi', 1050 + 55, yRow + 38);
+    } else if (bCheck?.status === 'NEED REVIEW') {
+      ctx.fillStyle = '#b45309';
+      ctx.fillText('⚠️ Perlu Cek', 1050 + 55, yRow + 38);
+    } else {
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillText('❌ Tidak Ada', 1050 + 55, yRow + 38);
+    }
+  });
+
+  // Footer
+  const yFooter = height - footerHeight;
+  ctx.fillStyle = '#fff4f7';
+  ctx.fillRect(0, yFooter, width, footerHeight);
+  ctx.strokeStyle = '#fecdd3';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, yFooter);
+  ctx.lineTo(width, yFooter);
+  ctx.stroke();
+
+  ctx.fillStyle = '#9f1239';
+  ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🌸 TikTok Validator Kacery • Laporan Resmi Terverifikasi Otomatis oleh AI Jorje', width / 2, yFooter + 35);
+
+  // Trigger Download
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `laporan_kacery_${Date.now()}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Also attempt copy to clipboard
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
+      }
+    } catch (e) {}
+
+    showToast('Gambar laporan berhasil diunduh untuk Kacery! 📸');
+  }, 'image/png');
 }
 
 /**
