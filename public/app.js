@@ -717,43 +717,59 @@ async function handleStartValidation() {
 
   let completed = 0;
   const total = urls.length;
+  const results = new Array(total);
+  const CONCURRENCY = 3;
 
-  for (let i = 0; i < total; i++) {
-    const url = urls[i];
-    const percent = Math.round(((i + 1) / total) * 100);
+  let nextUrlIndex = 0;
+  const runWorker = async () => {
+    while (nextUrlIndex < total) {
+      const i = nextUrlIndex++;
+      const url = urls[i];
 
-    progressText.textContent = `Memeriksa video ${i + 1} dari ${total}...`;
-    progressPercent.textContent = `${percent}%`;
-    progressFill.style.width = `${percent}%`;
-    progressDetail.textContent = `Mengekstrak data dari: ${url}`;
+      progressText.textContent = `Memeriksa ${completed + 1} dari ${total} video (Mode Cepat Paralel)...`;
+      progressDetail.textContent = `Mengekstrak data dari: ${url}`;
 
-    try {
-      const res = await fetch('/api/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          campaignConfig: currentConfig,
-        }),
-      });
-      const data = await res.json();
-      sessionReports.push(data);
-    } catch (err) {
-      sessionReports.push({
-        success: false,
-        videoUrl: url,
-        error: `Gagal memproses video: ${err.message}`,
-        overallStatus: 'FAIL',
-        overallStatusLabel: 'Belum Sesuai',
-        results: [],
-        summary: { total: 1, pass: 0, fail: 1, needReview: 0 }
-      });
+      try {
+        const res = await fetch('/api/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            campaignConfig: currentConfig,
+          }),
+        });
+        const data = await res.json();
+        results[i] = data;
+      } catch (err) {
+        results[i] = {
+          success: false,
+          videoUrl: url,
+          error: `Gagal memproses video: ${err.message}`,
+          overallStatus: 'FAIL',
+          overallStatusLabel: 'Belum Sesuai',
+          results: [],
+          summary: { total: 1, pass: 0, fail: 1, needReview: 0 }
+        };
+      }
+
+      completed++;
+      const percent = Math.round((completed / total) * 100);
+      progressPercent.textContent = `${percent}%`;
+      progressFill.style.width = `${percent}%`;
+
+      // Update sessionReports menjaga konsistensi urutan
+      sessionReports = results.filter(Boolean);
+      renderCards();
+      updateStats();
     }
+  };
 
-    completed++;
-    renderCards();
-    updateStats();
+  const workerCount = Math.min(CONCURRENCY, total);
+  const workers = [];
+  for (let w = 0; w < workerCount; w++) {
+    workers.push(runWorker());
   }
+  await Promise.all(workers);
 
   // Done
   progressText.textContent = `Selesai! Seluruh ${completed} video sudah diperiksa.`;
@@ -1061,22 +1077,64 @@ function createVideoTableRows(report, index) {
     </div>
   `;
 
+  const rawCaption = report.caption || '';
+  const detectedHashtags = Array.isArray(report.detectedHashtags) ? report.detectedHashtags : [];
+  const detectedMentions = Array.isArray(report.detectedMentions) ? report.detectedMentions : [];
+
+  const chipsHtml = (detectedHashtags.length > 0 || detectedMentions.length > 0) ? `
+    <div class="caption-chips-section" onclick="event.stopPropagation()">
+      <span class="caption-chips-label">📌 Salin Cepat Tagar & Mention (Klik chip untuk salin):</span>
+      <div class="caption-chips-row">
+        ${detectedHashtags.map(tag => {
+          const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
+          return `
+            <button type="button" class="btn-copy-chip" data-copy="${escapeHtml(formattedTag)}" title="Klik untuk salin ${escapeHtml(formattedTag)}">
+              <span>${escapeHtml(formattedTag)}</span>
+              <span class="chip-copy-icon">📋</span>
+            </button>
+          `;
+        }).join('')}
+        ${detectedMentions.map(men => {
+          const formattedMention = men.startsWith('@') ? men : `@${men}`;
+          return `
+            <button type="button" class="btn-copy-chip btn-copy-chip-mention" data-copy="${escapeHtml(formattedMention)}" title="Klik untuk salin ${escapeHtml(formattedMention)}">
+              <span>${escapeHtml(formattedMention)}</span>
+              <span class="chip-copy-icon">📋</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
+
   detailRow.innerHTML = `
     <td colspan="8" style="padding: 0;">
       <div class="detail-sub-wrapper">
         <div class="detail-left-col">
           <div class="caption-card-block">
-            <span class="caption-block-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              Caption Video Lengkap (Sebelum & Sesudah Tagar)
-            </span>
-            <div class="caption-content">${highlightedCaption || (report.error ? `<span class="text-danger">${escapeHtml(report.error)}</span>` : '<em class="text-muted">(Tidak ada caption)</em>')}</div>
+            <div class="caption-header-row">
+              <span class="caption-block-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Caption Video Lengkap (Sebelum & Sesudah Tagar)
+              </span>
+              ${rawCaption ? `
+                <button type="button" class="btn-copy-full-caption" title="Salin seluruh isi teks caption video ini">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Salin Seluruh Caption</span>
+                </button>
+              ` : ''}
+            </div>
+            <div class="caption-content" onclick="event.stopPropagation()">${highlightedCaption || (report.error ? `<span class="text-danger">${escapeHtml(report.error)}</span>` : '<em class="text-muted">(Tidak ada caption)</em>')}</div>
+            ${chipsHtml}
           </div>
           ${report.success !== false ? `
             <div class="metrics-strip-sub" style="justify-content: flex-start; padding: 0.5rem 0;">
@@ -1107,31 +1165,79 @@ function createVideoTableRows(report, index) {
   mainRow.addEventListener('click', toggleDetail);
   toggleBtn.addEventListener('click', toggleDetail);
 
-  // Copy listener
+  // Copy listener baris
   const copyBtn = mainRow.querySelector('.btn-copy-row');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => copySingleReport(report));
   }
+
+  // Listener Salin Seluruh Caption
+  const copyFullCaptionBtn = detailRow.querySelector('.btn-copy-full-caption');
+  if (copyFullCaptionBtn) {
+    copyFullCaptionBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(rawCaption);
+        const originalHtml = copyFullCaptionBtn.innerHTML;
+        copyFullCaptionBtn.innerHTML = `✓ <span>Tersalin!</span>`;
+        copyFullCaptionBtn.style.backgroundColor = '#10b981';
+        copyFullCaptionBtn.style.color = '#ffffff';
+        copyFullCaptionBtn.style.borderColor = '#10b981';
+        showToast('Caption lengkap video berhasil disalin!');
+        setTimeout(() => {
+          copyFullCaptionBtn.innerHTML = originalHtml;
+          copyFullCaptionBtn.style.backgroundColor = '';
+          copyFullCaptionBtn.style.color = '';
+          copyFullCaptionBtn.style.borderColor = '';
+        }, 1800);
+      } catch (err) {
+        showToast('Gagal menyalin caption.');
+      }
+    });
+  }
+
+  // Listener Salin Cepat Chip Tagar, Mention & Kata yang bertanda data-copy
+  detailRow.querySelectorAll('[data-copy]').forEach((elem) => {
+    elem.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const textToCopy = elem.getAttribute('data-copy');
+      if (!textToCopy) return;
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        showToast(`Tersalin: "${textToCopy}"`);
+        const origOpacity = elem.style.opacity;
+        elem.style.transform = 'scale(0.95)';
+        elem.style.opacity = '0.6';
+        setTimeout(() => {
+          elem.style.transform = '';
+          elem.style.opacity = origOpacity;
+        }, 200);
+      } catch (err) {
+        showToast('Gagal menyalin teks.');
+      }
+    });
+  });
 
   return [mainRow, detailRow];
 }
 
 /**
  * Highlight Mentions (@) and Hashtags (#) while keeping 100% of the raw caption text intact
+ * Also makes each mention & hashtag clickable for instant copy
  */
 function highlightCaption(caption) {
   if (!caption) return '';
 
   let html = escapeHtml(caption);
 
-  // Highlight @mentions
+  // Highlight @mentions (clickable copy)
   html = html.replace(/@[\p{L}\p{N}._]+/gu, (match) => {
-    return `<span class="highlight-mention">${match}</span>`;
+    return `<span class="highlight-mention chip-clickable" data-copy="${match}" title="Klik untuk salin ${match}">${match}</span>`;
   });
 
-  // Highlight #hashtags
+  // Highlight #hashtags (clickable copy)
   html = html.replace(/#[\p{L}\p{N}_]+/gu, (match) => {
-    return `<span class="highlight-hashtag">${match}</span>`;
+    return `<span class="highlight-hashtag chip-clickable" data-copy="${match}" title="Klik untuk salin ${match}">${match}</span>`;
   });
 
   return html;

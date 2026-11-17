@@ -38,9 +38,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Helper: Enrich validation report with Gemini AI Analysis
+// Helper: Enrich validation report with Gemini AI Analysis (hanya jika ada syarat brand)
 async function enrichWithGemini(report, config) {
   if (!process.env.GEMINI_API_KEY || !report || !report.success) return report;
+  // Jika tidak ada kata kunci brand yang dicari, lewati Gemini untuk menghemat waktu respon 2-3 detik per video
+  if (!config.brandKeywords || config.brandKeywords.length === 0) return report;
   try {
     const ai = await analyzeContentWithGemini({
       caption: report.caption || '',
