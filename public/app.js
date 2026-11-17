@@ -1,6 +1,6 @@
 // TikTok Affiliate Content Validator - Client Application (Khusus Kacery)
 
-const STORAGE_KEY = 'tt_affiliate_validator_config_v2';
+const STORAGE_KEY = 'tt_affiliate_validator_config_v3';
 const TOUR_STORAGE_KEY = 'tt_kacery_tour_completed_v3';
 
 const DEFAULT_CONFIG = {
@@ -14,8 +14,6 @@ const DEFAULT_CONFIG = {
     '#VapeMAT',
     '#TanpaAsapTanpaAbu'
   ],
-  brandKeywords: ['Vape', 'Fumakilla'],
-  brandCheckLocation: 'caption_or_video',
   expectedUsernames: [],
 };
 
@@ -77,7 +75,6 @@ const cfgName = document.getElementById('cfg-name');
 const cfgFollowers = document.getElementById('cfg-followers');
 const cfgViews = document.getElementById('cfg-views');
 const cfgLikes = document.getElementById('cfg-likes');
-const cfgBrandLoc = document.getElementById('cfg-brand-loc');
 
 // Tag Adder Inputs & Containers
 const inputNewHashtag = document.getElementById('input-new-hashtag');
@@ -87,10 +84,6 @@ const hashtagChipsContainer = document.getElementById('hashtag-chips-container')
 const inputNewMention = document.getElementById('input-new-mention');
 const btnAddMention = document.getElementById('btn-add-mention');
 const mentionChipsContainer = document.getElementById('mention-chips-container');
-
-const inputNewBrand = document.getElementById('input-new-brand');
-const btnAddBrand = document.getElementById('btn-add-brand');
-const brandChipsContainer = document.getElementById('brand-chips-container');
 
 const inputNewUsername = document.getElementById('input-new-username');
 const btnAddUsername = document.getElementById('btn-add-username');
@@ -125,25 +118,25 @@ const TOUR_STEPS = [
   {
     badge: 'Langkah 2 dari 5',
     title: 'Pengaturan Syarat Campaign (Satu per Satu)',
-    desc: 'Kacery bisa menentukan target followers, views, likes, hashtag wajib, dan mention. Sekarang Kacery bisa menambahkan hashtag dan mention satu per satu dengan tombol Tambah tanpa khawatir salah koma atau spasi!',
+    desc: 'Kacery bisa menentukan target followers, views, likes, hashtag wajib, dan mention. Kacery bisa menambahkan hashtag dan mention satu per satu dengan tombol Tambah tanpa khawatir salah koma atau spasi!',
     tip: 'Pengaturan otomatis tersimpan di browser Kacery, tidak perlu diatur ulang setiap kali buka web.'
   },
   {
     badge: 'Langkah 3 dari 5',
     title: 'Pemeriksaan Video Otomatis',
-    desc: 'Setelah link ditempel, klik tombol merah "Periksa Video Sekarang". Sistem otomatis membaca jumlah followers, views, likes, komentar, share, saves, dan menghitung Engagement Rate secara akurat.',
+    desc: 'Setelah link ditempel, klik tombol merah "Periksa Video Sekarang". Sistem otomatis membaca jumlah followers, views, likes, serta mencocokkan tagar dan mention secara instan.',
     tip: 'Pemeriksaan berjalan cepat dan tidak membedakan huruf besar/kecil pada hashtag.'
   },
   {
     badge: 'Langkah 4 dari 5',
-    title: 'Verifikasi Cerdas AI Jorje',
-    desc: 'Aplikasi didukung asisten pintar AI Jorje untuk memeriksa isi video dan caption. Jorje akan mengecek penyebutan brand yang dipromosikan dan menampilkan ringkasan akurasi.',
-    tip: 'Jika brand terbukti ada di video, AI Jorje otomatis memberi verifikasi tanpa Kacery harus menonton manual!'
+    title: 'Pemutar Audio MP3 & Video Langsung',
+    desc: 'Kacery bisa memutar audio (suara saja) secara ringan untuk hemat kuota, menonton video langsung di web app, atau membuka aplikasi TikTok dengan satu klik.',
+    tip: 'Gunakan pemutar audio untuk cek suara kreator secara cepat tanpa buffering!'
   },
   {
     badge: 'Langkah 5 dari 5',
-    title: 'Rekap Hasil & Ekspor Excel',
-    desc: 'Semua hasil pemeriksaan disajikan dalam kartu yang rapi dan tidak terpotong. Kacery bisa menyalin format laporan untuk WhatsApp atau mengunduh file CSV Excel dengan satu klik.',
+    title: 'Rekap Hasil & Ekspor Gambar / Excel',
+    desc: 'Semua hasil pemeriksaan disajikan dalam tabel rapi dengan caption lengkap. Kacery bisa menyalin laporan WhatsApp, mengunduh file CSV Excel, atau mengunduh Gambar Laporan (PNG).',
     tip: 'Kacery juga bisa memfilter video yang Sudah Sesuai atau Belum Sesuai saja.'
   }
 ];
@@ -464,7 +457,7 @@ function updateSummaryStrip() {
   const badgeMin = document.getElementById('badge-min-metrics');
   const badgeHash = document.getElementById('badge-hashtags');
   const badgeMent = document.getElementById('badge-mentions');
-  const badgeBrands = document.getElementById('badge-brands');
+  const badgeUsers = document.getElementById('badge-usernames');
 
   if (badgeName) badgeName.textContent = currentConfig.name || 'Campaign Default';
   if (badgeMin) {
@@ -478,9 +471,9 @@ function updateSummaryStrip() {
     const mentions = (currentConfig.requiredMentions || []).join(', ');
     badgeMent.textContent = mentions || 'Tidak ada mention wajib';
   }
-  if (badgeBrands) {
-    const brands = (currentConfig.brandKeywords || []).join(', ');
-    badgeBrands.textContent = brands || 'Tidak ada brand wajib';
+  if (badgeUsers) {
+    const users = (currentConfig.expectedUsernames || []).join(', ');
+    badgeUsers.textContent = users || 'Semua Akun Diterima';
   }
 }
 
@@ -531,27 +524,7 @@ function setupTagAdders() {
     }
   });
 
-  // 3. Brand Keyword Adder
-  const addBrand = () => {
-    const val = inputNewBrand.value.trim();
-    if (!val) return;
-    if (!tempBrands.some(b => b.toLowerCase() === val.toLowerCase())) {
-      tempBrands.push(val);
-      renderBrandChips();
-      logDiscordActivity('BUTTON_CLICK', 'Tambah Brand Keyword', { value: val, info: `Menambahkan keyword brand: ${val}` });
-    }
-    inputNewBrand.value = '';
-    inputNewBrand.focus();
-  };
-  btnAddBrand.addEventListener('click', addBrand);
-  inputNewBrand.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addBrand();
-    }
-  });
-
-  // 4. Expected Username Adder
+  // 3. Expected Username Adder
   const addUsername = () => {
     let val = inputNewUsername.value.trim();
     if (!val) return;
@@ -609,14 +582,6 @@ function renderMentionChips() {
   });
 }
 
-function renderBrandChips() {
-  renderTagChipsHelper(brandChipsContainer, tempBrands, (index) => {
-    const removed = tempBrands.splice(index, 1)[0];
-    renderBrandChips();
-    if (removed) logDiscordActivity('BUTTON_CLICK', 'Hapus Brand Keyword', { value: removed, info: `Menghapus brand: ${removed}` });
-  });
-}
-
 function renderUsernameChips() {
   renderTagChipsHelper(usernameChipsContainer, tempUsernames, (index) => {
     const removed = tempUsernames.splice(index, 1)[0];
@@ -633,22 +598,18 @@ function openConfigModal() {
   cfgFollowers.value = currentConfig.minFollowers ?? 600;
   cfgViews.value = currentConfig.minViews ?? 300;
   cfgLikes.value = currentConfig.minLikes ?? 50;
-  cfgBrandLoc.value = currentConfig.brandCheckLocation || 'caption_or_video';
 
   // Load tag arrays from config
   tempHashtags = [...(currentConfig.requiredHashtags || [])];
   tempMentions = [...(currentConfig.requiredMentions || [])];
-  tempBrands = [...(currentConfig.brandKeywords || [])];
   tempUsernames = [...(currentConfig.expectedUsernames || [])];
 
   renderHashtagChips();
   renderMentionChips();
-  renderBrandChips();
   renderUsernameChips();
 
   inputNewHashtag.value = '';
   inputNewMention.value = '';
-  inputNewBrand.value = '';
   inputNewUsername.value = '';
 
   configModal.classList.remove('is-hidden');
@@ -670,8 +631,6 @@ function saveConfigFromForm() {
     minLikes: parseInt(cfgLikes.value, 10) || 0,
     requiredMentions: [...tempMentions],
     requiredHashtags: [...tempHashtags],
-    brandKeywords: [...tempBrands],
-    brandCheckLocation: cfgBrandLoc.value || 'caption_or_video',
     expectedUsernames: [...tempUsernames],
   };
 
@@ -753,7 +712,7 @@ async function handleStartValidation() {
     totalVideos: urls.length,
     urls: urls.slice(0, 10),
     campaignName: currentConfig.name,
-    aiActive: Boolean(currentConfig.brandKeywords?.length)
+    aiActive: true
   });
 
   let completed = 0;
@@ -887,7 +846,7 @@ function renderCards() {
 
   if (filtered.length === 0 && sessionReports.length > 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `<td colspan="10" class="empty-table-cell"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></td>`;
+    emptyRow.innerHTML = `<td colspan="8" class="empty-table-cell"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></td>`;
     videoCardsList.appendChild(emptyRow);
     return;
   }
@@ -926,7 +885,6 @@ function createVideoTableRows(report, index) {
   let viewsHtml = '<span class="text-muted">-</span>';
   let likesHtml = '<span class="text-muted">-</span>';
   let followersHtml = '<span class="text-muted">-</span>';
-  let erHtml = '<span class="text-muted">-</span>';
 
   if (report.success !== false) {
     const viewsOk = (stats.views ?? 0) >= viewsTarget;
@@ -943,8 +901,6 @@ function createVideoTableRows(report, index) {
     followersHtml = followersOk
       ? `<span class="tbl-metric metric-ok">${formatNum(author.followerCount)}</span>`
       : `<span class="tbl-metric metric-fail" title="Kurang dari target minimal ${formatNum(followersTarget)}">${formatNum(author.followerCount)} ⚠️</span>`;
-
-    erHtml = `<span class="tbl-metric metric-er">${er.formatted || '-'}</span>`;
   }
 
   // Tagar & Mention Evaluation
@@ -974,23 +930,6 @@ function createVideoTableRows(report, index) {
     }
   }
 
-  // Brand & AI Jorje Evaluation
-  let brandHtml = `<span class="text-muted" style="font-size:0.75rem;">-</span>`;
-  if (report.success === false) {
-    brandHtml = `<span class="badge-tag-fail" title="${escapeHtml(report.error || 'Video tidak dapat diakses')}">❌ Error</span>`;
-  } else if ((currentConfig.brandKeywords || []).length > 0) {
-    const brandCheck = results.find(r => r.id === 'brand_keywords');
-    if (brandCheck) {
-      if (brandCheck.status === 'PASS') {
-        brandHtml = `<span class="badge-tag-pass" title="${escapeHtml(brandCheck.evidence || 'Brand terverifikasi')}">✅ Terdeteksi</span>`;
-      } else if (brandCheck.status === 'NEED REVIEW') {
-        brandHtml = `<span class="badge-tag-review" title="Cek video secara manual">⚠️ Perlu Cek</span>`;
-      } else {
-        brandHtml = `<span class="badge-tag-fail" title="Brand tidak ditemukan dalam caption / video">❌ Tidak Ada</span>`;
-      }
-    }
-  }
-
   // 1. Create Main Row (<tr>) with Video Cover Thumbnail
   const mainRow = document.createElement('tr');
   mainRow.className = `tbl-row-main row-status-${statusKey}`;
@@ -1003,29 +942,27 @@ function createVideoTableRows(report, index) {
     </td>
     <td class="td-video">
       <div class="video-cell-card">
-        <div class="video-cover-mini-wrap" title="Klik baris untuk lihat preview video">
+        <div class="video-cover-mini-wrap" title="Klik baris untuk lihat preview video & audio">
           ${report.media?.coverUrl ? `<img src="${escapeHtml(report.media.coverUrl)}" alt="Cover" class="video-cover-mini-img" loading="lazy" onerror="this.src='/icons/kacery-logo.png'">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:16px;">🎬</div>`}
           <span class="video-play-tag">▶</span>
         </div>
         <div class="video-meta-block">
           <div class="video-creator-row">
-            <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="video-creator-link" title="Buka video TikTok di tab baru" onclick="event.stopPropagation()">@${escapeHtml(username)}</a>
+            <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="video-creator-link" title="Buka video di TikTok" onclick="event.stopPropagation()">@${escapeHtml(username)}</a>
           </div>
           <span class="video-creator-nickname">${escapeHtml(author.nickname || '')}</span>
-          ${report.caption ? `<span class="video-caption-teaser" title="${escapeHtml(report.caption)}">${escapeHtml(report.caption.slice(0, 32))}${report.caption.length > 32 ? '…' : ''}</span>` : ''}
+          ${report.caption ? `<span class="video-caption-teaser" title="${escapeHtml(report.caption)}">${escapeHtml(report.caption)}</span>` : ''}
         </div>
       </div>
     </td>
     <td class="td-metric">${viewsHtml}</td>
     <td class="td-metric">${likesHtml}</td>
     <td class="td-metric">${followersHtml}</td>
-    <td class="td-metric">${erHtml}</td>
     <td class="td-tags">
       <div class="tags-cell-wrapper">
         ${tagBadges.join('')}
       </div>
     </td>
-    <td class="td-brand">${brandHtml}</td>
     <td class="td-actions">
       <div class="tbl-actions-group">
         <button type="button" class="btn-tbl-action btn-copy-row" title="Salin format laporan WhatsApp" data-index="${index}" onclick="event.stopPropagation()">
@@ -1041,7 +978,7 @@ function createVideoTableRows(report, index) {
             <line x1="10" y1="14" x2="21" y2="3"></line>
           </svg>
         </a>
-        <button type="button" class="btn-tbl-action btn-toggle-detail" title="Buka detail caption & video" data-index="${index}" onclick="event.stopPropagation()">
+        <button type="button" class="btn-tbl-action btn-toggle-detail" title="Buka detail caption, audio & video" data-index="${index}" onclick="event.stopPropagation()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
@@ -1056,7 +993,7 @@ function createVideoTableRows(report, index) {
   detailRow.id = `detail-row-${index}`;
 
   // Highlighted Caption
-  const highlightedCaption = highlightCaption(report.caption || '', currentConfig);
+  const highlightedCaption = highlightCaption(report.caption || '');
 
   // Gemini AI Analysis Banner
   let geminiBanner = '';
@@ -1073,40 +1010,72 @@ function createVideoTableRows(report, index) {
     `;
   }
 
-  // Video preview block
-  let mediaBlock = '';
-  if (report.media?.videoUrl) {
-    mediaBlock = `
-      <div class="video-preview-block">
-        <div class="video-frame-mobile">
-          <video controls preload="metadata" playsinline>
-            <source src="${escapeHtml(report.media.videoUrl)}" type="video/mp4">
-            Video tidak dapat diputar di browser ini.
-          </video>
+  // Audio stream URL (prefer audioUrl, fallback to videoUrl)
+  const audioSrc = report.media?.audioUrl || report.media?.videoUrl || '';
+
+  // Dual Media: Audio MP3 Card + Video Player Card + Direct TikTok Button
+  const mediaBlock = `
+    <div class="media-preview-block">
+      <!-- 1. Pemutar Audio MP3 (Ringan & Cepat) -->
+      ${audioSrc ? `
+        <div class="media-audio-card">
+          <div class="media-audio-header">
+            <div class="audio-title-group">
+              <span class="audio-icon-badge">🎵</span>
+              <div>
+                <div class="audio-card-title">Pemutar Audio Video</div>
+                <div class="audio-card-desc">Putar suara saja (hemat kuota & cepat)</div>
+              </div>
+            </div>
+          </div>
+          <audio controls preload="none" class="kacery-audio-player">
+            <source src="${escapeHtml(audioSrc)}" type="audio/mpeg">
+            <source src="${escapeHtml(audioSrc)}" type="audio/mp4">
+            Browser tidak mendukung pemutar audio ini.
+          </audio>
         </div>
-        <div class="manual-check-box">
-          <span class="manual-check-title">Verifikasi Manual Isi Video</span>
-          <div class="manual-check-options">
-            <label class="checkbox-mobile-label">
-              <input type="checkbox" class="cb-brand-visual" data-index="${index}">
-              <span>Tulisan brand terlihat jelas di layar video</span>
-            </label>
-            <label class="checkbox-mobile-label">
-              <input type="checkbox" class="cb-brand-audio" data-index="${index}">
-              <span>Nama brand terdengar diucapkan dalam video</span>
-            </label>
+      ` : ''}
+
+      <!-- 2. Pemutar Video Langsung di Web -->
+      ${report.media?.videoUrl ? `
+        <div class="media-video-card">
+          <div class="video-card-title">
+            <span>🎬 Tonton Video Langsung di Web</span>
+          </div>
+          <div class="video-frame-container">
+            <video controls preload="metadata" playsinline poster="${escapeHtml(report.media?.coverUrl || '')}">
+              <source src="${escapeHtml(report.media.videoUrl)}" type="video/mp4">
+              Video tidak dapat diputar langsung di browser ini.
+            </video>
           </div>
         </div>
-      </div>
-    `;
-  }
+      ` : ''}
+
+      <!-- 3. Direct Link ke Aplikasi TikTok -->
+      <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="btn-direct-tiktok" title="Buka langsung di aplikasi TikTok" onclick="event.stopPropagation()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.89 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3 15.67 6.34 6.34 0 0 0 9.34 22a6.34 6.34 0 0 0 6.34-6.33V9.22a8.21 8.21 0 0 0 4.91 1.63V7.4a4.83 4.83 0 0 1-1-.71z"/>
+        </svg>
+        <span>Buka di Aplikasi TikTok ↗</span>
+      </a>
+    </div>
+  `;
 
   detailRow.innerHTML = `
-    <td colspan="10" style="padding: 0;">
+    <td colspan="8" style="padding: 0;">
       <div class="detail-sub-wrapper">
         <div class="detail-left-col">
           <div class="caption-card-block">
-            <span class="caption-block-label">Caption Video & Hashtag</span>
+            <span class="caption-block-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Caption Video Lengkap (Sebelum & Sesudah Tagar)
+            </span>
             <div class="caption-content">${highlightedCaption || (report.error ? `<span class="text-danger">${escapeHtml(report.error)}</span>` : '<em class="text-muted">(Tidak ada caption)</em>')}</div>
           </div>
           ${report.success !== false ? `
@@ -1121,7 +1090,7 @@ function createVideoTableRows(report, index) {
           ${geminiBanner}
         </div>
         <div class="detail-right-col">
-          ${mediaBlock || '<p class="text-muted" style="font-size: 0.8rem; padding: 1rem 0;">Preview video langsung tidak tersedia (silakan buka link TikTok asli).</p>'}
+          ${mediaBlock}
         </div>
       </div>
     </td>
@@ -1144,66 +1113,25 @@ function createVideoTableRows(report, index) {
     copyBtn.addEventListener('click', () => copySingleReport(report));
   }
 
-  // Attach manual audio/visual verification listeners
-  const cbVisual = detailRow.querySelector('.cb-brand-visual');
-  const cbAudio = detailRow.querySelector('.cb-brand-audio');
-  if (cbVisual || cbAudio) {
-    const handleCheck = () => {
-      const visualFound = cbVisual ? cbVisual.checked : false;
-      const audioFound = cbAudio ? cbAudio.checked : false;
-
-      const brandResults = (report.results || []).filter(r => r.category === 'Brand');
-      brandResults.forEach(br => {
-        if (visualFound || audioFound) {
-          br.status = 'PASS';
-          br.statusLabel = 'Sudah Sesuai';
-          br.evidence = `Brand terbukti ditemukan dalam video (${visualFound ? 'tulisan visual' : ''}${visualFound && audioFound ? ' & ' : ''}${audioFound ? 'suara' : ''}).`;
-        }
-      });
-
-      const hasFail = report.results.some(r => r.status === 'FAIL');
-      const hasReview = report.results.some(r => r.status === 'NEED REVIEW');
-      report.overallStatus = hasFail ? 'FAIL' : (hasReview ? 'NEED REVIEW' : 'PASS');
-      report.overallStatusLabel = getFriendlyStatusLabel(report.overallStatus);
-
-      renderCards();
-      updateStats();
-      showToast('Status brand video diperbarui.');
-      logDiscordActivity('BUTTON_CLICK', 'Verifikasi Manual Brand Video', {
-        info: `Verifikasi manual @${report.author?.username || 'unknown'} diubah ke: ${report.overallStatusLabel || report.overallStatus}`
-      });
-    };
-
-    if (cbVisual) cbVisual.addEventListener('change', handleCheck);
-    if (cbAudio) cbAudio.addEventListener('change', handleCheck);
-  }
-
   return [mainRow, detailRow];
 }
 
 /**
- * Highlight Hashtags, Mentions, and Brand Keywords
+ * Highlight Mentions (@) and Hashtags (#) while keeping 100% of the raw caption text intact
  */
-function highlightCaption(caption, config) {
+function highlightCaption(caption) {
   if (!caption) return '';
 
   let html = escapeHtml(caption);
 
+  // Highlight @mentions
   html = html.replace(/@[\p{L}\p{N}._]+/gu, (match) => {
-    return `<span class="highlight-match">${match}</span>`;
+    return `<span class="highlight-mention">${match}</span>`;
   });
 
+  // Highlight #hashtags
   html = html.replace(/#[\p{L}\p{N}_]+/gu, (match) => {
-    return `<span class="highlight-match">${match}</span>`;
-  });
-
-  const brands = config.brandKeywords || [];
-  brands.forEach(b => {
-    if (!b) return;
-    const regex = new RegExp(`(?:^|[^\\p{L}\\p{N}])(${escapeRegex(b.trim())})(?=[^\\p{L}\\p{N}]|$)`, 'giu');
-    html = html.replace(regex, (full, brandWord) => {
-      return full.replace(brandWord, `<span class="highlight-match">${brandWord}</span>`);
-    });
+    return `<span class="highlight-hashtag">${match}</span>`;
   });
 
   return html;
@@ -1215,7 +1143,6 @@ function highlightCaption(caption, config) {
 function formatReportText(report) {
   const author = report.author || {};
   const stats = report.stats || {};
-  const er = report.engagementRate || {};
   const statusLabel = report.overallStatusLabel || getFriendlyStatusLabel(report.overallStatus);
 
   const lines = [
@@ -1232,7 +1159,6 @@ function formatReportText(report) {
     `Komentar: ${formatNum(stats.comments)}`,
     `Shares: ${formatNum(stats.shares)}`,
     `Saves: ${formatNum(stats.saves)}`,
-    `Engagement Rate: ${er.formatted || 'N/A'}`,
     ``,
     `[RINCIAN PEMERIKSAAN]`,
   ];
@@ -1304,14 +1230,13 @@ function exportReportsToCsv() {
     'Komentar',
     'Shares',
     'Saves',
-    'ER (%)',
+    'Caption',
     'Penjelasan Lengkap'
   ];
 
   const rows = sessionReports.map((r, i) => {
     const a = r.author || {};
     const s = r.stats || {};
-    const er = r.engagementRate || {};
     const statusLabel = r.overallStatusLabel || getFriendlyStatusLabel(r.overallStatus);
     const evidenceText = (r.results || [])
       .map(item => `[${item.statusLabel || item.status}] ${item.name}: ${item.evidence}`)
@@ -1328,7 +1253,7 @@ function exportReportsToCsv() {
       s.comments ?? '',
       s.shares ?? '',
       s.saves ?? '',
-      er.rate ?? '',
+      `"${(r.caption || '').replace(/"/g, '""')}"`,
       `"${evidenceText.replace(/"/g, '""')}"`
     ].join(',');
   });
@@ -1442,12 +1367,11 @@ function exportReportAsImage() {
   const cols = [
     { title: 'NO', x: 40, w: 40, align: 'center' },
     { title: 'STATUS', x: 95, w: 120, align: 'center' },
-    { title: 'KREATOR', x: 235, w: 220, align: 'left' },
-    { title: 'VIEWS', x: 490, w: 90, align: 'right' },
-    { title: 'LIKES', x: 600, w: 80, align: 'right' },
-    { title: 'ER (%)', x: 700, w: 80, align: 'right' },
-    { title: 'TAGAR & MENTION', x: 810, w: 220, align: 'left' },
-    { title: 'BRAND (JORJE)', x: 1050, w: 110, align: 'center' },
+    { title: 'KREATOR & CAPTION', x: 235, w: 340, align: 'left' },
+    { title: 'VIEWS', x: 595, w: 90, align: 'right' },
+    { title: 'LIKES', x: 705, w: 85, align: 'right' },
+    { title: 'FOLLOWERS', x: 810, w: 95, align: 'right' },
+    { title: 'TAGAR & MENTION', x: 935, w: 225, align: 'left' },
   ];
 
   ctx.fillStyle = '#475569';
@@ -1495,12 +1419,20 @@ function exportReportAsImage() {
     const pillText = isPass ? 'Sudah Sesuai' : (isFail ? 'Belum Sesuai' : 'Perlu Cek');
     drawPill(pillText, pillBg, pillFg, 95, yRow + 17, 120, 30);
 
-    // Creator Username
+    // Creator Username & Caption Preview
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 14px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'left';
     const uText = `@${r.author?.username || 'unknown'}`;
-    ctx.fillText(uText.length > 18 ? uText.slice(0, 17) + '…' : uText, 235, yRow + 38);
+    ctx.fillText(uText.length > 24 ? uText.slice(0, 23) + '…' : uText, 235, yRow + 26);
+
+    // Caption teaser underneath
+    const cap = (r.caption || '').replace(/\s+/g, ' ').trim();
+    if (cap) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(cap.length > 42 ? cap.slice(0, 41) + '…' : cap, 235, yRow + 46);
+    }
 
     // Views
     const vVal = r.stats?.views ?? 0;
@@ -1508,17 +1440,19 @@ function exportReportAsImage() {
     ctx.fillStyle = vPass ? '#047857' : '#e11d48';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(formatNum(vVal) + (vPass ? '' : ' ⚠️'), 490 + 90, yRow + 38);
+    ctx.fillText(formatNum(vVal) + (vPass ? '' : ' ⚠️'), 595 + 90, yRow + 38);
 
     // Likes
     const lVal = r.stats?.likes ?? 0;
     const lPass = lVal >= (currentConfig.minLikes || 0);
     ctx.fillStyle = lPass ? '#047857' : '#e11d48';
-    ctx.fillText(formatNum(lVal), 600 + 80, yRow + 38);
+    ctx.fillText(formatNum(lVal), 705 + 85, yRow + 38);
 
-    // ER
-    ctx.fillStyle = '#e11d48';
-    ctx.fillText(r.engagementRate?.formatted || '-', 700 + 80, yRow + 38);
+    // Followers
+    const fVal = r.author?.followerCount ?? 0;
+    const fPass = fVal >= (currentConfig.minFollowers || 0);
+    ctx.fillStyle = fPass ? '#047857' : '#e11d48';
+    ctx.fillText(formatNum(fVal), 810 + 95, yRow + 38);
 
     // Tagar & Mention
     ctx.textAlign = 'left';
@@ -1531,24 +1465,10 @@ function exportReportAsImage() {
     if (hMissing.length > 0 || mMissing.length > 0) {
       ctx.fillStyle = '#b91c1c';
       const missText = `❌ Kurang: ${[...hMissing, ...mMissing].join(' ')}`;
-      ctx.fillText(missText.length > 25 ? missText.slice(0, 24) + '…' : missText, 810, yRow + 38);
+      ctx.fillText(missText.length > 25 ? missText.slice(0, 24) + '…' : missText, 935, yRow + 38);
     } else {
       ctx.fillStyle = '#047857';
-      ctx.fillText('✅ Lengkap', 810, yRow + 38);
-    }
-
-    // Brand (Jorje)
-    const bCheck = (r.results || []).find(c => c.id === 'brand_keywords');
-    ctx.textAlign = 'center';
-    if (bCheck?.status === 'PASS') {
-      ctx.fillStyle = '#047857';
-      ctx.fillText('✅ Terdeteksi', 1050 + 55, yRow + 38);
-    } else if (bCheck?.status === 'NEED REVIEW') {
-      ctx.fillStyle = '#b45309';
-      ctx.fillText('⚠️ Perlu Cek', 1050 + 55, yRow + 38);
-    } else {
-      ctx.fillStyle = '#b91c1c';
-      ctx.fillText('❌ Tidak Ada', 1050 + 55, yRow + 38);
+      ctx.fillText('✅ Tagar & Mention Lengkap', 935, yRow + 38);
     }
   });
 

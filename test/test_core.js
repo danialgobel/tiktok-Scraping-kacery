@@ -80,6 +80,7 @@ async function runTests() {
   assert(typeof extracted.stats.likes === 'number', `Likes Count: ${extracted.stats.likes}`);
   assert(Boolean(extracted.caption), `Caption preview: "${extracted.caption.substring(0, 50)}..."`);
   assert(Boolean(extracted.media.videoUrl), `Stream URL extracted: ${extracted.media.videoUrl.substring(0, 60)}...`);
+  assert(Boolean(extracted.media.audioUrl), `Audio stream URL extracted: ${extracted.media.audioUrl.substring(0, 60)}...`);
 
   // --- VALIDATION SCENARIO 1: Custom Campaign against Real Video ---
   console.log('\n4. VALIDATION SCENARIO 1: Real Video against Test Campaign');

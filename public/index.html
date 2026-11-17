@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>TikTok Validator Kacery</title>
-  <meta name="description" content="Aplikasi validator video TikTok affiliate khusus Kacery. Memeriksa followers, views, likes, tagar, mention, dan brand campaign secara otomatis.">
+  <meta name="description" content="Aplikasi validator video TikTok affiliate khusus Kacery. Memeriksa followers, views, likes, tagar, dan mention campaign secara otomatis dengan pemutar audio dan video.">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="/icons/kacery-logo.png">
   <link rel="apple-touch-icon" href="/icons/kacery-logo.png">
-  <link rel="stylesheet" href="/style.css?v=2.8">
+  <link rel="stylesheet" href="/style.css?v=3.0">
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,8 +91,8 @@
               <span id="badge-mentions" class="chip-val">@vape.antinyamuk.idn</span>
             </div>
             <div class="summary-chip">
-              <span class="chip-key">Kata Brand</span>
-              <span id="badge-brands" class="chip-val">Vape, Fumakilla</span>
+              <span class="chip-key">Akun Khusus</span>
+              <span id="badge-usernames" class="chip-val">Semua Akun</span>
             </div>
           </div>
         </section>
@@ -102,7 +102,7 @@
           <div class="info-box-header">
             <span class="info-box-title">Didukung AI Jorje</span>
           </div>
-          <p class="info-box-desc">Sistem dilengkapi analisis AI Jorje untuk memastikan keaslian konten promosi brand affiliate dan menghitung Engagement Rate secara otomatis.</p>
+          <p class="info-box-desc">Sistem membaca metrik views, likes, followers, serta memvalidasi tagar dan mention otomatis dengan dukungan pemutar audio & video langsung.</p>
         </section>
       </aside>
 
@@ -275,9 +275,7 @@
                     <th class="th-metric">Views</th>
                     <th class="th-metric">Likes</th>
                     <th class="th-metric">Followers</th>
-                    <th class="th-metric">ER (%)</th>
                     <th class="th-tags">Tagar & Mention</th>
-                    <th class="th-brand">Brand (Jorje)</th>
                     <th class="th-actions">Aksi</th>
                   </tr>
                 </thead>
@@ -417,29 +415,6 @@
             <span class="field-hint">Ketik akun satu per satu tanpa khawatir salah spasi atau koma</span>
           </div>
 
-          <!-- Brand Keywords Tag Adder -->
-          <div class="form-group">
-            <label class="form-label">Kata Kunci Brand yang Harus Disebut</label>
-            <div class="tag-input-row">
-              <input type="text" id="input-new-brand" class="form-input tag-input-field" placeholder="Ketik nama brand, misal: Fumakilla">
-              <button type="button" id="btn-add-brand" class="btn-add-tag">+ Tambah</button>
-            </div>
-            <div id="brand-chips-container" class="tag-chips-wrapper">
-              <!-- Rendered as chips -->
-            </div>
-            <span class="field-hint">Nama brand atau varian produk yang wajib ada dalam konten</span>
-          </div>
-
-          <!-- Brand Check Location -->
-          <div class="form-group">
-            <label for="cfg-brand-loc" class="form-label">Lokasi Pemeriksaan Brand</label>
-            <select id="cfg-brand-loc" class="form-select">
-              <option value="caption_or_video">Ada di Caption ATAU di Video (Rekomendasi)</option>
-              <option value="caption_only">Wajib Ada di Caption Saja</option>
-              <option value="video_only">Wajib Ada di Isi Video Saja</option>
-            </select>
-          </div>
-
           <!-- Expected Usernames Tag Adder -->
           <div class="form-group">
             <label class="form-label">Daftar Username Affiliate Resmi (Opsional)</label>
@@ -476,6 +451,6 @@
     <span id="toast-message">Notifikasi</span>
   </div>
 
-  <script src="/app.js?v=2.8" type="module"></script>
+  <script src="/app.js?v=3.0" type="module"></script>
 </body>
 </html>
