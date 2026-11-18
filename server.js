@@ -141,13 +141,14 @@ app.get('/api/proxy-image', async (req, res) => {
 
 // API: Single video extraction
 app.post('/api/extract', async (req, res) => {
-  const { url } = req.body;
+  const { url, sessionCookie } = req.body;
   if (!url) {
     return res.status(400).json({ success: false, error: 'URL video tidak boleh kosong' });
   }
   const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || '';
+  const cookie = sessionCookie || req.headers['x-tiktok-session'] || '';
   try {
-    const data = await extractTikTokVideo(url, clientIp);
+    const data = await extractTikTokVideo(url, clientIp, cookie);
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -156,16 +157,17 @@ app.post('/api/extract', async (req, res) => {
 
 // API: Single video validation
 app.post('/api/validate', async (req, res) => {
-  const { url, campaignConfig, manualVideoReview } = req.body;
+  const { url, campaignConfig, manualVideoReview, sessionCookie } = req.body;
   if (!url) {
     return res.status(400).json({ success: false, error: 'URL video tidak boleh kosong' });
   }
 
   const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || '';
+  const cookie = sessionCookie || req.headers['x-tiktok-session'] || '';
   const config = campaignConfig || DEFAULT_CAMPAIGN_CONFIG;
 
   try {
-    const rawData = await extractTikTokVideo(url, clientIp);
+    const rawData = await extractTikTokVideo(url, clientIp, cookie);
     let report = validateVideo(rawData, config, manualVideoReview);
     report = await enrichWithGemini(report, config);
     res.json(report);
