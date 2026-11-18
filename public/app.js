@@ -919,13 +919,13 @@ function createVideoTableRows(report, index) {
       : `<span class="tbl-metric metric-fail" title="Kurang dari target minimal ${formatNum(followersTarget)}">${formatNum(author.followerCount)} ⚠️</span>`;
   }
 
-  // Tagar & Mention Evaluation
+  // Tagar, Mention & Keranjang Kuning Evaluation
   let tagBadges = [];
   if (report.success === false) {
     tagBadges.push(`<span class="badge-tag-fail" title="Gagal mengekstrak video">❌ Gagal Ambil Data</span>`);
   } else {
-    const hashtagCheck = results.find(r => r.id === 'hashtags');
-    const mentionCheck = results.find(r => r.id === 'mentions');
+    const hashtagCheck = results.find(r => r.id === 'hashtags' || (r.name && r.name.toLowerCase().includes('hashtag')));
+    const mentionCheck = results.find(r => r.id === 'mentions' || (r.name && r.name.toLowerCase().includes('mention')));
     const missingTags = hashtagCheck?.missing || [];
     const missingMentions = mentionCheck?.missing || [];
 
@@ -936,9 +936,18 @@ function createVideoTableRows(report, index) {
     }
 
     if (missingMentions.length > 0) {
-      tagBadges.push(`<span class="badge-tag-fail" title="Mention wajib tidak ditemukan">❌ Kurang: ${escapeHtml(missingMentions.join(' '))}</span>`);
+      tagBadges.push(`<span class="badge-tag-fail" title="Mention wajib tidak ditemukan">❌ Kurang Mention</span>`);
     } else if ((currentConfig.requiredMentions || []).length > 0) {
       tagBadges.push(`<span class="badge-tag-pass">✅ Mention Ada</span>`);
+    }
+
+    // Badge Keranjang Kuning (TikTok Shop)
+    const yCart = report.yellowCart || {};
+    if (yCart.hasCart) {
+      const shortTitle = yCart.name ? (yCart.name.length > 20 ? yCart.name.slice(0, 20) + '...' : yCart.name) : 'Keranjang Ada';
+      tagBadges.push(`<span class="badge-cart-tag pass" title="Keranjang Kuning: ${escapeHtml(yCart.name || 'Produk TikTok Shop')}"><span class="cart-mini-icon">🛒</span> <span>${escapeHtml(shortTitle)}</span></span>`);
+    } else {
+      tagBadges.push(`<span class="badge-cart-tag none" title="Tidak ada keranjang kuning produk"><span class="cart-mini-icon">🛒</span> <span>Tanpa Keranjang</span></span>`);
     }
 
     if (tagBadges.length === 0) {
@@ -955,6 +964,7 @@ function createVideoTableRows(report, index) {
     <td class="td-num">${index + 1}</td>
     <td class="td-status">
       <span class="status-pill ${statusKey}">${escapeHtml(statusLabel)}</span>
+      ${(report.overallStatus === 'FAIL' && report.failedReasonsSummary) ? `<span class="status-fail-reason" title="${escapeHtml(report.failedReasonsSummary)}">${escapeHtml(report.failedReasonsSummary)}</span>` : ''}
     </td>
     <td class="td-video">
       <div class="video-cell-card">
@@ -1081,6 +1091,48 @@ function createVideoTableRows(report, index) {
   const detectedHashtags = Array.isArray(report.detectedHashtags) ? report.detectedHashtags : [];
   const detectedMentions = Array.isArray(report.detectedMentions) ? report.detectedMentions : [];
 
+  const yellowCart = report.yellowCart || {};
+  const hasCart = yellowCart.hasCart === true;
+
+  const cartBlockHtml = `
+    <div class="yellow-cart-card ${hasCart ? '' : 'empty-cart'}" onclick="event.stopPropagation()">
+      <div class="yellow-cart-header">
+        <div class="yellow-cart-title-wrap">
+          <span>🛒</span>
+          <span>Keranjang Kuning (TikTok Shop / Tokopedia)</span>
+        </div>
+        <span class="yellow-cart-badge-status ${hasCart ? 'pass' : 'none'}">
+          ${hasCart ? '✓ Tersemat di Video' : '✕ Tidak Ada Keranjang'}
+        </span>
+      </div>
+      ${hasCart ? `
+        <div class="yellow-cart-body">
+          <div class="yellow-cart-thumb-wrap">
+            ${yellowCart.coverUrl ? `
+              <img src="${escapeHtml(yellowCart.coverUrl)}" alt="Produk" class="yellow-cart-thumb-img" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'font-size:24px;\\'>🛍️</span>'">
+            ` : `<span style="font-size:24px;">🛍️</span>`}
+          </div>
+          <div class="yellow-cart-info-col">
+            <div class="yellow-cart-product-name">${escapeHtml(yellowCart.name || 'Produk TikTok Shop')}</div>
+            <div class="yellow-cart-seller">
+              <span>🏪</span>
+              <span>${escapeHtml(yellowCart.seller || 'Tokopedia / TikTok Shop')}</span>
+              ${yellowCart.productId ? `<span style="opacity:0.65;font-size:0.7rem;">(ID: ${escapeHtml(yellowCart.productId)})</span>` : ''}
+            </div>
+            ${yellowCart.productUrl ? `
+              <a href="${escapeHtml(yellowCart.productUrl)}" target="_blank" rel="noopener noreferrer" class="btn-open-shop">
+                <span>Lihat Produk di Shop</span>
+                <span>↗</span>
+              </a>
+            ` : ''}
+          </div>
+        </div>
+      ` : `
+        <p class="yellow-cart-empty-text">Video ini tidak menyematkan keranjang kuning produk TikTok Shop / Tokopedia.</p>
+      `}
+    </div>
+  `;
+
   const chipsHtml = (detectedHashtags.length > 0 || detectedMentions.length > 0) ? `
     <div class="caption-chips-section" onclick="event.stopPropagation()">
       <span class="caption-chips-label">📌 Salin Cepat Tagar & Mention (Klik chip untuk salin):</span>
@@ -1136,6 +1188,7 @@ function createVideoTableRows(report, index) {
             <div class="caption-content" onclick="event.stopPropagation()">${highlightedCaption || (report.error ? `<span class="text-danger">${escapeHtml(report.error)}</span>` : '<em class="text-muted">(Tidak ada caption)</em>')}</div>
             ${chipsHtml}
           </div>
+          ${cartBlockHtml}
           ${report.success !== false ? `
             <div class="metrics-strip-sub" style="justify-content: flex-start; padding: 0.5rem 0;">
               <span>Komentar: <strong>${formatNum(stats.comments)}</strong></span>
@@ -1277,6 +1330,8 @@ function formatReportText(report) {
     lines.push(`- Analisis Jorje: ${report.aiAnalysis.summary}`);
   }
 
+  const yCart = report.yellowCart || {};
+  lines.push(`Keranjang Kuning: ${yCart.hasCart ? `Ada (${yCart.name || 'Produk TikTok Shop'})` : 'Tidak Ada'}`);
   lines.push(``);
   lines.push(`Caption: ${report.caption || '-'}`);
   lines.push(`=========================================`);

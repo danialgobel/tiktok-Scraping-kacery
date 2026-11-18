@@ -44,8 +44,39 @@ async function runTests() {
   assert(checkKeyword(testCaption, 'FUMAKILLA'), 'Brand Fumakilla case-insensitive matched');
   assert(!checkKeyword(testCaption, 'Hit'), 'Non-existent brand rejected');
 
+  // --- UNIT TESTS: MENTION OR LOGIC & YELLOW CART ---
+  console.log('\n2. UNIT TESTS: MENTION OR LOGIC & FAILED REASONS');
+  const dummyVideo = {
+    success: true,
+    videoUrl: 'https://test.com',
+    author: { username: 'testuser', followerCount: 1000 },
+    stats: { views: 1000, likes: 200, comments: 10, shares: 5, saves: 2 },
+    caption: 'Review bareng @vape.antinyamuk.idn yuk! #VapeCuanAntiNyamuk',
+    yellowCart: { hasCart: true, name: 'Vape OnePush', seller: 'Tokopedia' }
+  };
+  const orMentionCampaign = {
+    minFollowers: 500,
+    minViews: 500,
+    minLikes: 100,
+    requiredMentions: ['@vape.antinyamuk.idn', '@fumakilla.id'], // 1 out of 2 matched
+    requiredHashtags: ['#VapeCuanAntiNyamuk']
+  };
+  const orResult = validateVideo(dummyVideo, orMentionCampaign);
+  assert(orResult.overallStatus === 'PASS', 'Mention OR logic: 1 of 2 mentions passed overall validation');
+  assert(orResult.yellowCart.hasCart === true, 'Yellow cart preserved in validation result');
+
+  const failingDummy = {
+    ...dummyVideo,
+    stats: { views: 10, likes: 2 },
+    caption: 'Tanpa tagar dan tanpa mention',
+    yellowCart: { hasCart: false }
+  };
+  const failCheck = validateVideo(failingDummy, orMentionCampaign);
+  assert(failCheck.overallStatus === 'FAIL', 'Failing dummy marked as FAIL');
+  assert(Boolean(failCheck.failedReasonsSummary), `Failed reasons generated: "${failCheck.failedReasonsSummary}"`);
+
   // --- UNIT TESTS: ENGAGEMENT RATE (ER) ---
-  console.log('\n2. UNIT TESTS: ENGAGEMENT RATE CALCULATION');
+  console.log('\n3. UNIT TESTS: ENGAGEMENT RATE CALCULATION');
 
   const statsWithSaves = { views: 10000, likes: 500, comments: 50, shares: 30, saves: 20 };
   const er1 = calculateER(statsWithSaves);
