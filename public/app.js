@@ -53,6 +53,11 @@ const btnExportCsv = document.getElementById('btn-export-csv');
 const btnExportImage = document.getElementById('btn-export-image');
 const boardCampaignInfo = document.getElementById('board-campaign-info');
 const boardReportDate = document.getElementById('board-report-date');
+const verticalCardsContainer = document.getElementById('vertical-cards-container');
+const btnModeCards = document.getElementById('btn-mode-cards');
+const btnModeTable = document.getElementById('btn-mode-table');
+const infographicBoard = document.getElementById('infographic-board');
+let currentViewMode = 'CARDS';
 
 const statTotal = document.getElementById('stat-total');
 const statPass = document.getElementById('stat-pass');
@@ -104,6 +109,23 @@ const btnTourNext = document.getElementById('btn-tour-next');
 // Toast
 const toastEl = document.getElementById('toast');
 const toastMsg = document.getElementById('toast-message');
+
+// Tab Navigation Elements
+const tabBtnHome = document.getElementById('tab-btn-home');
+const tabBtnHistory = document.getElementById('tab-btn-history');
+const tabBtnLicense = document.getElementById('tab-btn-license');
+const tabContentHome = document.getElementById('tab-content-home');
+const tabContentHistory = document.getElementById('tab-content-history');
+const tabContentLicense = document.getElementById('tab-content-license');
+
+// History Elements
+const historyGroupsContainer = document.getElementById('history-groups-container');
+const historyEmptyState = document.getElementById('history-empty-state');
+const historySearchInput = document.getElementById('history-search-input');
+const btnClearHistory = document.getElementById('btn-clear-history');
+let activeTab = 'home';
+let historySearchTerm = '';
+let historySearchDebounceTimer = null;
 
 /**
  * Clean & Friendly Panduan Steps for Kacery
@@ -279,6 +301,23 @@ function init() {
     });
   });
 
+  if (btnModeCards && btnModeTable) {
+    btnModeCards.addEventListener('click', () => {
+      currentViewMode = 'CARDS';
+      btnModeCards.classList.add('active');
+      btnModeTable.classList.remove('active');
+      if (verticalCardsContainer) verticalCardsContainer.style.display = 'flex';
+      if (infographicBoard) infographicBoard.style.display = 'none';
+    });
+    btnModeTable.addEventListener('click', () => {
+      currentViewMode = 'TABLE';
+      btnModeTable.classList.add('active');
+      btnModeCards.classList.remove('active');
+      if (verticalCardsContainer) verticalCardsContainer.style.display = 'none';
+      if (infographicBoard) infographicBoard.style.display = 'block';
+    });
+  }
+
   btnExportCsv.addEventListener('click', () => {
     exportReportsToCsv();
     logDiscordActivity('BUTTON_CLICK', 'Ekspor CSV', {
@@ -353,6 +392,39 @@ function init() {
       if (imgModal && !imgModal.classList.contains('is-hidden')) closeImagePreviewModal();
     }
   });
+
+  // Tab Navigation Listeners
+  if (tabBtnHome) tabBtnHome.addEventListener('click', () => switchTab('home'));
+  if (tabBtnHistory) tabBtnHistory.addEventListener('click', () => switchTab('history'));
+  if (tabBtnLicense) tabBtnLicense.addEventListener('click', () => switchTab('license'));
+
+  // History Actions Listeners
+  if (historySearchInput) {
+    historySearchInput.addEventListener('input', (e) => {
+      historySearchTerm = e.target.value;
+      clearTimeout(historySearchDebounceTimer);
+      historySearchDebounceTimer = setTimeout(() => {
+        loadAndRenderHistory(historySearchTerm);
+      }, 250);
+    });
+  }
+
+  if (btnClearHistory) {
+    btnClearHistory.addEventListener('click', async () => {
+      if (confirm('Kacery yakin ingin mengosongkan seluruh riwayat pemeriksaan video?')) {
+        await clearAllHistoryBatches();
+        showToast('Seluruh riwayat berhasil dibersihkan.');
+        loadAndRenderHistory('');
+        logDiscordActivity('BUTTON_CLICK', 'Bersihkan Seluruh Riwayat');
+      }
+    });
+  }
+
+  // Button Nav to Home from Empty State
+  const btnNavToHome = document.querySelector('.btn-nav-to-home');
+  if (btnNavToHome) {
+    btnNavToHome.addEventListener('click', () => switchTab('home'));
+  }
 
   // Auto-start tour only if never completed
   checkAutoStartTour();
@@ -841,6 +913,23 @@ async function handleStartValidation() {
   const failCount = sessionReports.filter(r => r.overallStatus === 'FAIL').length;
   const reviewCount = sessionReports.filter(r => r.overallStatus === 'NEED REVIEW').length;
 
+  // Simpan otomatis ke Database Riwayat Lokal (IndexedDB)
+  try {
+    await saveBatchToHistory({
+      campaignName: currentConfig.name,
+      timestamp: Date.now(),
+      summary: {
+        total: sessionReports.length,
+        pass: passCount,
+        fail: failCount,
+        needReview: reviewCount
+      },
+      reports: sessionReports
+    });
+  } catch (err) {
+    console.warn('Gagal menyimpan otomatis ke riwayat:', err);
+  }
+
   logDiscordActivity('VALIDATION_FINISH', 'Validasi Video Selesai', {
     campaignName: currentConfig.name,
     summary: {
@@ -854,7 +943,6 @@ async function handleStartValidation() {
       status: r.overallStatus,
       statusLabel: r.overallStatusLabel,
       views: r.stats?.views,
-      engagementRate: r.engagementRate?.formatted,
       failedReasons: (r.results || []).filter(c => c.status === 'FAIL').map(c => c.name)
     })),
     aiSummary: sessionReports.some(r => r.aiAnalysis?.available)
@@ -890,7 +978,8 @@ function updateStats() {
  * Render Video Result Rows in Table (Visual Infographic View)
  */
 function renderCards() {
-  videoCardsList.innerHTML = '';
+  if (videoCardsList) videoCardsList.innerHTML = '';
+  if (verticalCardsContainer) verticalCardsContainer.innerHTML = '';
 
   if (boardCampaignInfo) {
     boardCampaignInfo.textContent = `Campaign: ${currentConfig.name || 'Default'} • Khusus Kacery`;
@@ -914,16 +1003,27 @@ function renderCards() {
   });
 
   if (filtered.length === 0 && sessionReports.length > 0) {
-    const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `<td colspan="8" class="empty-table-cell"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></td>`;
-    videoCardsList.appendChild(emptyRow);
+    if (videoCardsList) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = `<td colspan="8" class="empty-table-cell"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></td>`;
+      videoCardsList.appendChild(emptyRow);
+    }
+    if (verticalCardsContainer) {
+      verticalCardsContainer.innerHTML = `<div class="card" style="text-align:center; padding: 2rem;"><p class="empty-paragraph">Tidak ada video dengan filter yang dipilih.</p></div>`;
+    }
     return;
   }
 
   filtered.forEach((report, index) => {
-    const [mainRow, detailRow] = createVideoTableRows(report, index);
-    videoCardsList.appendChild(mainRow);
-    videoCardsList.appendChild(detailRow);
+    if (videoCardsList) {
+      const [mainRow, detailRow] = createVideoTableRows(report, index);
+      videoCardsList.appendChild(mainRow);
+      videoCardsList.appendChild(detailRow);
+    }
+    if (verticalCardsContainer) {
+      const vcard = createVerticalCard(report, index);
+      verticalCardsContainer.appendChild(vcard);
+    }
   });
 }
 
@@ -1089,41 +1189,44 @@ function createVideoTableRows(report, index) {
     `;
   }
 
-  // Audio stream URL (prefer audioUrl, fallback to videoUrl)
-  const audioSrc = report.media?.audioUrl || report.media?.videoUrl || '';
+  // Video & Audio streams (strictly authentic video stream or resilient fallback)
+  const videoSrc = report.media?.videoUrl || '';
+  const audioSrc = report.media?.audioUrl || report.media?.videoUrl || report.media?.bgmUrl || '';
 
   // Dual Media: Audio MP3 Card + Video Player Card + Direct TikTok Button
   const mediaBlock = `
     <div class="media-preview-block">
-      <!-- 1. Pemutar Audio MP3 (Ringan & Cepat) -->
+      <!-- 1. Pemutar Audio Asli (Suara Kreator) -->
       ${audioSrc ? `
         <div class="media-audio-card">
           <div class="media-audio-header">
             <div class="audio-title-group">
-              <span class="audio-icon-badge">🎵</span>
+              <span class="audio-icon-badge">🎙️</span>
               <div>
-                <div class="audio-card-title">Pemutar Audio Video</div>
-                <div class="audio-card-desc">Putar suara saja (hemat kuota & cepat)</div>
+                <div class="audio-card-title">Pemutar Audio Asli Video</div>
+                <div class="audio-card-desc">Suara murni kreator & video (cepat & hemat kuota)</div>
               </div>
             </div>
           </div>
           <audio controls preload="none" class="kacery-audio-player">
-            <source src="${escapeHtml(audioSrc)}" type="audio/mpeg">
-            <source src="${escapeHtml(audioSrc)}" type="audio/mp4">
+            <source src="/api/stream-audio?url=${encodeURIComponent(audioSrc)}" type="audio/mpeg">
+            <source src="/api/proxy-video?url=${encodeURIComponent(audioSrc)}" type="video/mp4">
+            <source src="${escapeHtml(audioSrc)}" type="video/mp4">
             Browser tidak mendukung pemutar audio ini.
           </audio>
         </div>
       ` : ''}
 
       <!-- 2. Pemutar Video Langsung di Web -->
-      ${report.media?.videoUrl ? `
+      ${videoSrc ? `
         <div class="media-video-card">
           <div class="video-card-title">
             <span>🎬 Tonton Video Langsung di Web</span>
           </div>
           <div class="video-frame-container">
             <video controls preload="metadata" playsinline poster="${escapeHtml(report.media?.coverUrl || '')}">
-              <source src="${escapeHtml(report.media.videoUrl)}" type="video/mp4">
+              <source src="/api/proxy-video?url=${encodeURIComponent(videoSrc)}" type="video/mp4">
+              <source src="${escapeHtml(videoSrc)}" type="video/mp4">
               Video tidak dapat diputar langsung di browser ini.
             </video>
           </div>
@@ -1365,6 +1468,327 @@ function createVideoTableRows(report, index) {
 }
 
 /**
+ * Create Full Vertical Detail Card for Video (Flowing downwards, zero horizontal scroll!)
+ */
+function createVerticalCard(report, index) {
+  const author = report.author || {};
+  const stats = report.stats || {};
+  const er = report.engagementRate || {};
+  const username = author.username || 'Tidak diketahui';
+  const videoUrl = report.videoUrl || '';
+  const statusKey = (report.overallStatus || 'fail').toLowerCase().replace(/\s+/g, '-');
+  const statusLabel = report.overallStatusLabel || getFriendlyStatusLabel(report.overallStatus);
+  const results = report.results || [];
+
+  const viewsTarget = currentConfig.minViews ?? 0;
+  const likesTarget = currentConfig.minLikes ?? 0;
+  const followersTarget = currentConfig.minFollowers ?? 0;
+
+  const viewsOk = (stats.views ?? 0) >= viewsTarget;
+  const likesOk = (stats.likes ?? 0) >= likesTarget;
+  const followersOk = (author.followerCount ?? 0) >= followersTarget;
+
+  const failedReasons = report.failedReasonsSummary || '';
+  const yellowCart = report.yellowCart || {};
+  const hasCart = yellowCart.hasCart === true;
+  const resolvedCover = yellowCart.proxyCoverUrl || (yellowCart.coverUrl ? `/api/proxy-image?url=${encodeURIComponent(yellowCart.coverUrl)}` : '');
+  const rawCover = yellowCart.coverUrl || '';
+
+  const detectedHashtags = Array.isArray(report.detectedHashtags) ? report.detectedHashtags : [];
+  const detectedMentions = Array.isArray(report.detectedMentions) ? report.detectedMentions : [];
+  const rawCaption = report.caption || '';
+  const highlightedCaption = highlightCaption(rawCaption);
+
+  let statusIcon = '❌';
+  if (report.overallStatus === 'PASS') statusIcon = '✅';
+  else if (report.overallStatus === 'NEED REVIEW') statusIcon = '⚠️';
+
+  const card = document.createElement('div');
+  card.className = `vertical-video-card status-${statusKey}`;
+  card.id = `vcard-${index}`;
+
+  card.innerHTML = `
+    <!-- 1. Header Row -->
+    <div class="vcard-header">
+      <div class="vcard-creator-block">
+        <span class="vcard-index-badge">#${index + 1}</span>
+        <div class="vcard-creator-details">
+          <div class="vcard-creator-name-row">
+            <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="vcard-username">@${escapeHtml(username)}</a>
+            ${author.isVerified ? '<span class="vcard-verified-badge" title="Akun Terverifikasi">✓</span>' : ''}
+          </div>
+          <span class="vcard-meta-text">ID: ${escapeHtml(report.videoId || '-')} ${author.nickname ? '• ' + escapeHtml(author.nickname) : ''}</span>
+        </div>
+      </div>
+      <div class="vcard-status-block">
+        <span class="status-pill ${statusKey}">
+          <span class="pill-icon">${statusIcon}</span>
+          <span>${escapeHtml(statusLabel)}</span>
+        </span>
+        ${failedReasons ? `<span class="vcard-fail-reason">${escapeHtml(failedReasons)}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- 2. Metrics Grid (Zero horizontal scroll!) -->
+    <div class="vcard-metrics-grid">
+      <div class="vcard-metric-box ${viewsOk ? 'metric-pass' : 'metric-fail'}">
+        <span class="vcard-metric-label">Views</span>
+        <strong class="vcard-metric-val">${formatNum(stats.views)}</strong>
+        <span class="vcard-metric-sub">Min: ${formatNum(viewsTarget)} ${viewsOk ? '✅' : '⚠️'}</span>
+      </div>
+      <div class="vcard-metric-box ${likesOk ? 'metric-pass' : 'metric-fail'}">
+        <span class="vcard-metric-label">Likes</span>
+        <strong class="vcard-metric-val">${formatNum(stats.likes)}</strong>
+        <span class="vcard-metric-sub">Min: ${formatNum(likesTarget)} ${likesOk ? '✅' : '⚠️'}</span>
+      </div>
+      <div class="vcard-metric-box ${followersOk ? 'metric-pass' : 'metric-fail'}">
+        <span class="vcard-metric-label">Followers</span>
+        <strong class="vcard-metric-val">${formatNum(author.followerCount)}</strong>
+        <span class="vcard-metric-sub">Min: ${formatNum(followersTarget)} ${followersOk ? '✅' : '⚠️'}</span>
+      </div>
+      <div class="vcard-metric-box">
+        <span class="vcard-metric-label">Komentar</span>
+        <strong class="vcard-metric-val">${formatNum(stats.comments)}</strong>
+        <span class="vcard-metric-sub">Interaksi</span>
+      </div>
+      <div class="vcard-metric-box">
+        <span class="vcard-metric-label">Share</span>
+        <strong class="vcard-metric-val">${formatNum(stats.shares)}</strong>
+        <span class="vcard-metric-sub">Diteruskan</span>
+      </div>
+    </div>
+
+    <!-- 3. Keranjang Kuning (TikTok Shop / Tokopedia) -->
+    <div class="yellow-cart-card ${hasCart ? '' : 'empty-cart'}">
+      <div class="yellow-cart-header">
+        <div class="yellow-cart-title-wrap">
+          <span>🛒</span>
+          <span>Keranjang Kuning (TikTok Shop / Tokopedia)</span>
+        </div>
+        <span class="yellow-cart-badge-status ${hasCart ? 'pass' : 'none'}">
+          ${hasCart ? '✓ Tersemat di Video' : '✕ Tidak Ada Keranjang'}
+        </span>
+      </div>
+      ${hasCart ? `
+        <div class="yellow-cart-body">
+          <div class="yellow-cart-thumb-wrap"
+               role="button"
+               tabindex="0"
+               aria-label="Lihat gambar produk"
+               title="Klik untuk memperbesar gambar produk"
+               data-img="${escapeHtml(resolvedCover || rawCover)}"
+               data-orig-img="${escapeHtml(rawCover)}"
+               data-name="${escapeHtml(yellowCart.name || 'Produk TikTok Shop')}"
+               data-seller="${escapeHtml(yellowCart.seller || 'Tokopedia / TikTok Shop')}"
+               data-url="${escapeHtml(yellowCart.productUrl || '')}">
+            ${(resolvedCover || rawCover) ? `
+              <img src="${escapeHtml(resolvedCover || rawCover)}" 
+                   alt="${escapeHtml(yellowCart.name || 'Produk')}" 
+                   class="yellow-cart-thumb-img" 
+                   loading="lazy" 
+                   onerror="if(!this.dataset.retried && '${escapeHtml(rawCover)}'){this.dataset.retried='1';this.src='/api/proxy-image?url='+encodeURIComponent('${escapeHtml(rawCover)}');}else{this.parentElement.innerHTML='<span style=\\'font-size:24px;\\'>🛍️</span>';}">
+            ` : `<span style="font-size:24px;">🛍️</span>`}
+          </div>
+          <div class="yellow-cart-info-col">
+            <div class="yellow-cart-product-name">${escapeHtml(yellowCart.name || 'Produk TikTok Shop')}</div>
+            <div class="yellow-cart-seller">
+              <span>🏪</span>
+              <span>${escapeHtml(yellowCart.seller || 'Tokopedia / TikTok Shop')}</span>
+              ${yellowCart.productId ? `<span style="opacity:0.65;font-size:0.7rem;">(ID: ${escapeHtml(yellowCart.productId)})</span>` : ''}
+            </div>
+            ${yellowCart.productUrl ? `
+              <a href="${escapeHtml(yellowCart.productUrl)}" target="_blank" rel="noopener noreferrer" class="btn-open-shop">
+                <span>Lihat Produk di Shop</span>
+                <span>↗</span>
+              </a>
+            ` : ''}
+          </div>
+        </div>
+      ` : `
+        <p class="yellow-cart-empty-text">Video ini tidak menyematkan keranjang kuning produk TikTok Shop / Tokopedia.</p>
+      `}
+    </div>
+
+    <!-- 4. Checklist Kriteria Validasi -->
+    <div class="vcard-checklist-section">
+      <div class="vcard-section-label">📋 Rincian Evaluasi Syarat:</div>
+      <div class="vcard-checklist-grid">
+        ${results.map(r => {
+          const pass = r.status === 'PASS';
+          const review = r.status === 'NEED REVIEW';
+          const icon = pass ? '✅' : (review ? '⚠️' : '❌');
+          const badgeClass = pass ? 'pass' : (review ? 'need-review' : 'fail');
+          return `
+            <div class="vcard-check-item ${badgeClass}">
+              <div class="vcard-check-top">
+                <span class="vcard-check-name">${icon} ${escapeHtml(r.name || '')}</span>
+                <span class="status-pill ${badgeClass} vcard-pill-mini">${escapeHtml(r.statusLabel || r.status)}</span>
+              </div>
+              <div class="vcard-check-evidence">${escapeHtml(r.evidence || '')}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- 5. Caption & Salin Cepat Tagar/Mention -->
+    <div class="caption-card-block">
+      <div class="caption-header-row">
+        <span class="caption-block-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Caption Video Lengkap
+        </span>
+        ${rawCaption ? `
+          <button type="button" class="btn-copy-full-caption" title="Salin seluruh isi teks caption video ini">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Salin Caption</span>
+          </button>
+        ` : ''}
+      </div>
+      <div class="caption-content">${highlightedCaption || '<em class="text-muted">Tidak ada caption tertulis pada video ini.</em>'}</div>
+      ${(detectedHashtags.length > 0 || detectedMentions.length > 0) ? `
+        <div class="caption-chips-section">
+          <span class="caption-chips-label">📌 Salin Cepat Tagar & Mention (Klik chip untuk salin):</span>
+          <div class="caption-chips-row">
+            ${detectedHashtags.map(tag => {
+              const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
+              return `
+                <button type="button" class="btn-copy-chip" data-copy="${escapeHtml(formattedTag)}" title="Klik untuk salin ${escapeHtml(formattedTag)}">
+                  <span>${escapeHtml(formattedTag)}</span>
+                  <span class="chip-copy-icon">📋</span>
+                </button>
+              `;
+            }).join('')}
+            ${detectedMentions.map(men => {
+              const formattedMention = men.startsWith('@') ? men : `@${men}`;
+              return `
+                <button type="button" class="btn-copy-chip btn-copy-chip-mention" data-copy="${escapeHtml(formattedMention)}" title="Klik untuk salin ${escapeHtml(formattedMention)}">
+                  <span>${escapeHtml(formattedMention)}</span>
+                  <span class="chip-copy-icon">📋</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- 6. Media Section (Suara Asli Kreator & Video Langsung) -->
+    ${(report.media?.videoUrl || report.media?.audioUrl) ? `
+      <div class="vcard-section vcard-media-section">
+        <div class="vcard-audio-label">🎙️ Suara Asli & Video Kreator:</div>
+        
+        <!-- Pemutar Audio Murni (Hemat Kuota & Cepat) -->
+        <div class="vcard-audio-box">
+          <div class="vcard-audio-subtext">🎵 Putar suara murni video (omongan kreator):</div>
+          <audio controls preload="none" class="kacery-audio-player">
+            <source src="/api/stream-audio?url=${encodeURIComponent(report.media.audioUrl || report.media.videoUrl)}" type="audio/mpeg">
+            <source src="/api/proxy-video?url=${encodeURIComponent(report.media.audioUrl || report.media.videoUrl)}" type="video/mp4">
+            <source src="${escapeHtml(report.media.audioUrl || report.media.videoUrl)}" type="video/mp4">
+            Browser tidak mendukung pemutar audio ini.
+          </audio>
+        </div>
+
+        <!-- Pemutar Video Langsung di Web -->
+        ${report.media?.videoUrl ? `
+          <div class="vcard-video-box">
+            <details class="vcard-video-details" open>
+              <summary class="vcard-video-summary">
+                <span>🎬 Tonton Video Langsung di Web (Visual + Suara)</span>
+                <span class="vcard-video-toggle-icon">▼</span>
+              </summary>
+              <div class="vcard-video-player-wrap">
+                <video controls preload="metadata" playsinline poster="${escapeHtml(report.media?.coverUrl || '')}" class="vcard-video-player">
+                  <source src="/api/proxy-video?url=${encodeURIComponent(report.media.videoUrl)}" type="video/mp4">
+                  <source src="${escapeHtml(report.media.videoUrl)}" type="video/mp4">
+                  Browser tidak mendukung pemutar video ini.
+                </video>
+              </div>
+            </details>
+          </div>
+        ` : `
+          <div class="vcard-video-box">
+            <div class="video-notice-box" style="padding: 0.6rem 0.85rem; background: #fff0f5; border: 1.5px dashed #000; border-radius: 6px; font-size: 0.8rem; color: #4b5563;">
+              <span>ℹ️ Visual video sedang di-streaming melalui audio di atas. Klik tombol merah di bawah untuk membuka video lengkap di aplikasi TikTok.</span>
+            </div>
+          </div>
+        `}
+      </div>
+    ` : ''}
+
+    <!-- 7. Action Footer -->
+    <div class="vcard-footer">
+      <button type="button" class="btn-secondary-action btn-copy-single" data-index="${index}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span>Salin Hasil Video Ini</span>
+      </button>
+      <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer" class="btn-primary-action btn-sm-action">
+        <span>Buka di TikTok ↗</span>
+      </a>
+    </div>
+  `;
+
+  // Event handlers
+  const copyBtn = card.querySelector('.btn-copy-single');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => copySingleReport(index));
+  }
+
+  const copyCaptionBtn = card.querySelector('.btn-copy-full-caption');
+  if (copyCaptionBtn && rawCaption) {
+    copyCaptionBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(rawCaption).then(() => {
+        showToast('Caption berhasil disalin ke clipboard!');
+      }).catch(() => {
+        showToast('Gagal menyalin caption.');
+      });
+    });
+  }
+
+  const chipButtons = card.querySelectorAll('.btn-copy-chip');
+  chipButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const textToCopy = btn.getAttribute('data-copy');
+      if (textToCopy) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast(`Berhasil salin: ${textToCopy}`);
+        }).catch(() => {
+          showToast(`Gagal menyalin: ${textToCopy}`);
+        });
+      }
+    });
+  });
+
+  const thumbWrap = card.querySelector('.yellow-cart-thumb-wrap');
+  if (thumbWrap) {
+    const handleZoom = () => {
+      const src = thumbWrap.getAttribute('data-img') || thumbWrap.getAttribute('data-orig-img');
+      const title = thumbWrap.getAttribute('data-name') || 'Produk TikTok Shop';
+      const seller = thumbWrap.getAttribute('data-seller') || 'Tokopedia / TikTok Shop';
+      const productUrl = thumbWrap.getAttribute('data-url') || '';
+      if (src) {
+        openImagePreviewModal({ src, title, seller, productUrl });
+      }
+    };
+    thumbWrap.addEventListener('click', handleZoom);
+  }
+
+  return card;
+}
+
+/**
  * Highlight Mentions (@) and Hashtags (#) while keeping 100% of the raw caption text intact
  * Also makes each mention & hashtag clickable for instant copy
  */
@@ -1521,15 +1945,15 @@ function exportReportsToCsv() {
 }
 
 /**
- * Export All Reports as an Infographic PNG Image (Gambar Laporan untuk Kacery)
+ * Export All Reports as a Crisp Neobrutalism Infographic PNG Image (Laporan Resmi untuk Kacery)
  */
-function exportReportAsImage() {
-  if (sessionReports.length === 0) {
+function exportReportAsImage(customReports = null, customTitle = null) {
+  const reports = customReports || sessionReports;
+  if (!reports || reports.length === 0) {
     showToast('Belum ada data untuk diunduh ya Kacery.');
     return;
   }
 
-  const reports = sessionReports;
   const passCount = reports.filter(r => r.overallStatus === 'PASS').length;
   const failCount = reports.filter(r => r.overallStatus === 'FAIL').length;
   const reviewCount = reports.filter(r => r.overallStatus === 'NEED REVIEW').length;
@@ -1537,209 +1961,312 @@ function exportReportAsImage() {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  const width = 1200;
-  const headerHeight = 200;
-  const colHeaderHeight = 48;
-  const rowHeight = 64;
-  const footerHeight = 60;
-  const height = headerHeight + colHeaderHeight + (reports.length * rowHeight) + footerHeight;
+  const width = 1240;
+  const margin = 24;
+  const innerWidth = width - (margin * 2);
+  const headerHeight = 175;
+  const colHeaderHeight = 44;
+  const rowHeight = 70;
+  const footerHeight = 56;
+  const innerHeight = headerHeight + colHeaderHeight + (reports.length * rowHeight) + footerHeight;
+  const totalHeight = innerHeight + (margin * 2) + 8; // extra room for neobrutalism shadow
 
-  // Hi-DPI scaling for crisp text
+  // Hi-DPI scaling for crisp text on Retina/4K screens
   const scale = 2;
   canvas.width = width * scale;
-  canvas.height = height * scale;
+  canvas.height = totalHeight * scale;
   ctx.scale(scale, scale);
 
-  // Background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
+  // 1. Canvas Outer Canvas Tint
+  ctx.fillStyle = '#fdf4f6';
+  ctx.fillRect(0, 0, width, totalHeight);
 
-  // Header Banner
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, '#fff1f4');
-  gradient.addColorStop(1, '#ffe4eb');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, headerHeight);
+  // Helper: Draw Neobrutalism Card (with 4px offset solid shadow)
+  const drawNeobrutalBox = (x, y, w, h, radius, fill, stroke, shadowOffset = 5) => {
+    // Shadow
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(x + shadowOffset, y + shadowOffset, w, h, radius);
+    ctx.fill();
 
-  // Bottom border of banner
-  ctx.strokeStyle = '#fecdd3';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, headerHeight);
-  ctx.lineTo(width, headerHeight);
-  ctx.stroke();
+    // Foreground Card
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fill();
 
-  // Header Title
-  ctx.fillStyle = '#881337';
-  ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('🌸 TIKTOK VALIDATOR KACERY', 40, 52);
-
-  // Subtitle
-  ctx.fillStyle = '#9f1239';
-  ctx.font = '600 15px "Plus Jakarta Sans", sans-serif';
-  let nowStr = 'WIB';
-  try {
-    nowStr = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date()) + ' WIB';
-  } catch (e) {}
-  ctx.fillText(`Laporan Campaign: ${currentConfig.name || 'Default'} • ${nowStr}`, 40, 85);
+    // Border
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.stroke();
+  };
 
   // Helper: Draw Pill Badge
-  const drawPill = (text, bg, fg, x, y, w, h) => {
+  const drawPillBadge = (text, bg, fg, border, x, y, w, h, font = 'bold 12px "Plus Jakarta Sans", sans-serif') => {
     ctx.fillStyle = bg;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, h / 2);
     ctx.fill();
+
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, h / 2);
+    ctx.stroke();
+
     ctx.fillStyle = fg;
-    ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+    ctx.font = font;
     ctx.textAlign = 'center';
-    ctx.fillText(text, x + w / 2, y + h / 2 + 5);
+    ctx.fillText(text, x + (w / 2), y + (h / 2) + 4);
     ctx.textAlign = 'left';
   };
 
-  drawPill(`Total: ${reports.length} Video`, '#ffffff', '#0f172a', 40, 120, 140, 36);
-  drawPill(`✅ Sudah Sesuai: ${passCount}`, '#ecfdf5', '#047857', 195, 120, 175, 36);
-  drawPill(`❌ Belum Sesuai: ${failCount}`, '#fef2f2', '#b91c1c', 385, 120, 175, 36);
-  if (reviewCount > 0) {
-    drawPill(`⚠️ Perlu Cek: ${reviewCount}`, '#fffbeb', '#b45309', 575, 120, 150, 36);
-  }
+  // 2. Draw Main Neobrutalism White Container Card
+  const cardX = margin;
+  const cardY = margin;
+  drawNeobrutalBox(cardX, cardY, innerWidth, innerHeight, 16, '#ffffff', '#0f172a', 6);
 
-  // Table Column Headers
-  const yThead = headerHeight;
-  ctx.fillStyle = '#fff8fa';
-  ctx.fillRect(0, yThead, width, colHeaderHeight);
-  ctx.strokeStyle = '#fecdd3';
-  ctx.lineWidth = 1.5;
+  // Clip content inside the rounded container
+  ctx.save();
   ctx.beginPath();
-  ctx.moveTo(0, yThead + colHeaderHeight);
-  ctx.lineTo(width, yThead + colHeaderHeight);
+  ctx.roundRect(cardX, cardY, innerWidth, innerHeight, 16);
+  ctx.clip();
+
+  // 3. Header Section
+  const grad = ctx.createLinearGradient(cardX, cardY, cardX + innerWidth, cardY + headerHeight);
+  grad.addColorStop(0, '#fff1f4');
+  grad.addColorStop(1, '#ffe4ec');
+  ctx.fillStyle = grad;
+  ctx.fillRect(cardX, cardY, innerWidth, headerHeight);
+
+  // Bottom border of Header
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cardX, cardY + headerHeight);
+  ctx.lineTo(cardX + innerWidth, cardY + headerHeight);
   ctx.stroke();
 
-  // Columns X coordinates
+  // Ribbon Logo Icon (Neobrutalism Pink Badge with Letter C)
+  const iconX = cardX + 32;
+  const iconY = cardY + 28;
+  const iconSize = 44;
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.roundRect(iconX + 3, iconY + 3, iconSize, iconSize, 10);
+  ctx.fill();
+  ctx.fillStyle = '#ffe4eb';
+  ctx.beginPath();
+  ctx.roundRect(iconX, iconY, iconSize, iconSize, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#e11d48';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(iconX, iconY, iconSize, iconSize, 10);
+  ctx.stroke();
+
+  ctx.fillStyle = '#be123c';
+  ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('C', iconX + (iconSize / 2), iconY + 31);
+  ctx.textAlign = 'left';
+
+  // Title & Subtitle
+  ctx.fillStyle = '#881337';
+  ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('TIKTOK VALIDATOR KACERY', iconX + iconSize + 16, iconY + 23);
+
+  let nowStr = 'WIB';
+  try {
+    nowStr = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date()) + ' WIB';
+  } catch (e) {}
+  ctx.fillStyle = '#475569';
+  ctx.font = '600 13px "Plus Jakarta Sans", sans-serif';
+  const titleText = customTitle || `Laporan Campaign: ${currentConfig.name || 'Default'}`;
+  ctx.fillText(`${titleText}  •  ${nowStr}`, iconX + iconSize + 16, iconY + 42);
+
+  // Header Metric Badges (KPI Row)
+  const kpiY = cardY + 104;
+  let kpiX = cardX + 32;
+  drawPillBadge(`Total: ${reports.length} Video`, '#ffffff', '#0f172a', '#0f172a', kpiX, kpiY, 140, 36);
+  kpiX += 152;
+  drawPillBadge(`Sudah Sesuai: ${passCount}`, '#ecfdf5', '#047857', '#059669', kpiX, kpiY, 175, 36);
+  kpiX += 187;
+  drawPillBadge(`Belum Sesuai: ${failCount}`, '#fef2f2', '#e11d48', '#e11d48', kpiX, kpiY, 175, 36);
+  kpiX += 187;
+  if (reviewCount > 0) {
+    drawPillBadge(`Perlu Cek: ${reviewCount}`, '#fffbeb', '#b45309', '#d97706', kpiX, kpiY, 150, 36);
+  }
+
+  // 4. Column Header Bar
+  const yThead = cardY + headerHeight;
+  ctx.fillStyle = '#fff8fa';
+  ctx.fillRect(cardX, yThead, innerWidth, colHeaderHeight);
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cardX, yThead + colHeaderHeight);
+  ctx.lineTo(cardX + innerWidth, yThead + colHeaderHeight);
+  ctx.stroke();
+
+  // Columns Layout
   const cols = [
-    { title: 'NO', x: 40, w: 40, align: 'center' },
-    { title: 'STATUS', x: 95, w: 120, align: 'center' },
-    { title: 'KREATOR & CAPTION', x: 235, w: 340, align: 'left' },
-    { title: 'VIEWS', x: 595, w: 90, align: 'right' },
-    { title: 'LIKES', x: 705, w: 85, align: 'right' },
-    { title: 'FOLLOWERS', x: 810, w: 95, align: 'right' },
-    { title: 'TAGAR & MENTION', x: 935, w: 225, align: 'left' },
+    { title: 'NO', x: cardX + 24, w: 40, align: 'center' },
+    { title: 'STATUS', x: cardX + 74, w: 120, align: 'center' },
+    { title: 'KREATOR & CAPTION', x: cardX + 204, w: 290, align: 'left' },
+    { title: 'VIEWS', x: cardX + 504, w: 85, align: 'right' },
+    { title: 'LIKES', x: cardX + 599, w: 80, align: 'right' },
+    { title: 'FOLLOWERS', x: cardX + 689, w: 90, align: 'right' },
+    { title: 'KERANJANG', x: cardX + 789, w: 110, align: 'center' },
+    { title: 'EVALUASI SYARAT', x: cardX + 909, w: 260, align: 'left' },
   ];
 
-  ctx.fillStyle = '#475569';
-  ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
   cols.forEach(c => {
     if (c.align === 'center') {
       ctx.textAlign = 'center';
-      ctx.fillText(c.title, c.x + c.w / 2, yThead + 29);
+      ctx.fillText(c.title, c.x + (c.w / 2), yThead + 26);
     } else if (c.align === 'right') {
       ctx.textAlign = 'right';
-      ctx.fillText(c.title, c.x + c.w, yThead + 29);
+      ctx.fillText(c.title, c.x + c.w, yThead + 26);
     } else {
       ctx.textAlign = 'left';
-      ctx.fillText(c.title, c.x, yThead + 29);
+      ctx.fillText(c.title, c.x, yThead + 26);
     }
   });
 
-  // Draw Rows
+  // 5. Draw Video Rows
   reports.forEach((r, i) => {
     const yRow = yThead + colHeaderHeight + (i * rowHeight);
 
-    // Alternating zebra row
-    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#fff9fb';
-    ctx.fillRect(0, yRow, width, rowHeight);
+    // Alternating Zebra Row
+    ctx.fillStyle = (i % 2 === 0) ? '#ffffff' : '#fff9fb';
+    ctx.fillRect(cardX, yRow, innerWidth, rowHeight);
 
-    // Border bottom
-    ctx.strokeStyle = '#fde2e7';
-    ctx.lineWidth = 1;
+    // Row Bottom Border
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(0, yRow + rowHeight);
-    ctx.lineTo(width, yRow + rowHeight);
+    ctx.moveTo(cardX, yRow + rowHeight);
+    ctx.lineTo(cardX + innerWidth, yRow + rowHeight);
     ctx.stroke();
 
-    // No
+    // 1. No
     ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(String(i + 1), 40 + 20, yRow + 38);
+    ctx.fillText(String(i + 1), cardX + 24 + 20, yRow + 41);
 
-    // Status Pill
+    // 2. Status Pill Badge
     const isPass = r.overallStatus === 'PASS';
     const isFail = r.overallStatus === 'FAIL';
     const pillBg = isPass ? '#ecfdf5' : (isFail ? '#fef2f2' : '#fffbeb');
     const pillFg = isPass ? '#047857' : (isFail ? '#b91c1c' : '#b45309');
+    const pillBorder = isPass ? '#10b981' : (isFail ? '#f43f5e' : '#f59e0b');
     const pillText = isPass ? 'Sudah Sesuai' : (isFail ? 'Belum Sesuai' : 'Perlu Cek');
-    drawPill(pillText, pillBg, pillFg, 95, yRow + 17, 120, 30);
+    drawPillBadge(pillText, pillBg, pillFg, pillBorder, cardX + 74, yRow + 20, 115, 30);
 
-    // Creator Username & Caption Preview
+    // 3. Creator & Caption
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'left';
     const uText = `@${r.author?.username || 'unknown'}`;
-    ctx.fillText(uText.length > 24 ? uText.slice(0, 23) + '…' : uText, 235, yRow + 26);
+    ctx.fillText(uText.length > 22 ? uText.slice(0, 21) + '…' : uText, cardX + 204, yRow + 29);
 
-    // Caption teaser underneath
     const cap = (r.caption || '').replace(/\s+/g, ' ').trim();
-    if (cap) {
-      ctx.fillStyle = '#64748b';
-      ctx.font = '11px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(cap.length > 42 ? cap.slice(0, 41) + '…' : cap, 235, yRow + 46);
-    }
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(cap.length > 36 ? cap.slice(0, 35) + '…' : (cap || '-'), cardX + 204, yRow + 49);
 
-    // Views
+    // 4. Views
     const vVal = r.stats?.views ?? 0;
     const vPass = vVal >= (currentConfig.minViews || 0);
     ctx.fillStyle = vPass ? '#047857' : '#e11d48';
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(formatNum(vVal) + (vPass ? '' : ' ⚠️'), 595 + 90, yRow + 38);
+    ctx.fillText(formatNum(vVal), cardX + 504 + 85, yRow + 41);
 
-    // Likes
+    // 5. Likes
     const lVal = r.stats?.likes ?? 0;
     const lPass = lVal >= (currentConfig.minLikes || 0);
     ctx.fillStyle = lPass ? '#047857' : '#e11d48';
-    ctx.fillText(formatNum(lVal), 705 + 85, yRow + 38);
+    ctx.fillText(formatNum(lVal), cardX + 599 + 80, yRow + 41);
 
-    // Followers
+    // 6. Followers
     const fVal = r.author?.followerCount ?? 0;
     const fPass = fVal >= (currentConfig.minFollowers || 0);
     ctx.fillStyle = fPass ? '#047857' : '#e11d48';
-    ctx.fillText(formatNum(fVal), 810 + 95, yRow + 38);
+    ctx.fillText(formatNum(fVal), cardX + 689 + 90, yRow + 41);
 
-    // Tagar & Mention
+    // 7. Keranjang Kuning Pill
+    const hasCart = Boolean(r.hasYellowCart);
+    const cartBg = hasCart ? '#fef3c7' : '#f1f5f9';
+    const cartFg = hasCart ? '#92400e' : '#64748b';
+    const cartBorder = hasCart ? '#f59e0b' : '#cbd5e1';
+    const cartText = hasCart ? 'Keranjang Ada' : 'Tidak Ada';
+    drawPillBadge(cartText, cartBg, cartFg, cartBorder, cardX + 789, yRow + 22, 105, 26, 'bold 11px "Plus Jakarta Sans", sans-serif');
+
+    // 8. Evaluasi Syarat
     ctx.textAlign = 'left';
-    ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+
     const hCheck = (r.results || []).find(c => c.id === 'hashtags');
     const mCheck = (r.results || []).find(c => c.id === 'mentions');
+    const bCheck = (r.results || []).find(c => c.id === 'brand_keywords');
     const hMissing = hCheck?.missing || [];
     const mMissing = mCheck?.missing || [];
+    const bMissing = bCheck?.missing || [];
 
-    if (hMissing.length > 0 || mMissing.length > 0) {
+    const allMissing = [...hMissing, ...mMissing, ...bMissing];
+
+    if (allMissing.length > 0) {
       ctx.fillStyle = '#b91c1c';
-      const missText = `❌ Kurang: ${[...hMissing, ...mMissing].join(' ')}`;
-      ctx.fillText(missText.length > 25 ? missText.slice(0, 24) + '…' : missText, 935, yRow + 38);
+      const missText = `Kurang: ${allMissing.join(' ')}`;
+      ctx.fillText(missText.length > 34 ? missText.slice(0, 33) + '…' : missText, cardX + 909, yRow + 34);
+    } else if (r.aiAnalysis && r.aiAnalysis.available) {
+      ctx.fillStyle = '#047857';
+      ctx.fillText('Terverifikasi AI Jorje', cardX + 909, yRow + 34);
     } else {
       ctx.fillStyle = '#047857';
-      ctx.fillText('✅ Tagar & Mention Lengkap', 935, yRow + 38);
+      ctx.fillText('Semua Syarat Sesuai', cardX + 909, yRow + 34);
+    }
+
+    if (r.failedReasons) {
+      ctx.fillStyle = '#e11d48';
+      ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+      const frText = String(r.failedReasons);
+      ctx.fillText(frText.length > 38 ? frText.slice(0, 37) + '…' : frText, cardX + 909, yRow + 51);
     }
   });
 
-  // Footer
-  const yFooter = height - footerHeight;
-  ctx.fillStyle = '#fff4f7';
-  ctx.fillRect(0, yFooter, width, footerHeight);
-  ctx.strokeStyle = '#fecdd3';
-  ctx.lineWidth = 1;
+  // 6. Footer Section
+  const yFooter = innerHeight - footerHeight;
+  ctx.fillStyle = '#fff1f4';
+  ctx.fillRect(cardX, yFooter, innerWidth, footerHeight);
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.moveTo(0, yFooter);
-  ctx.lineTo(width, yFooter);
+  ctx.moveTo(cardX, yFooter);
+  ctx.lineTo(cardX + innerWidth, yFooter);
   ctx.stroke();
 
-  ctx.fillStyle = '#9f1239';
-  ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🌸 TikTok Validator Kacery • Laporan Resmi Terverifikasi Otomatis oleh AI Jorje', width / 2, yFooter + 35);
+  ctx.fillStyle = '#881337';
+  ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('TikTok Validator Kacery  •  Hak Cipta © 2026 Danial Gobel & Jorje Asisten AI  •  Antigravity IDE', cardX + 32, yFooter + 33);
 
-  // Trigger Download
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('Laporan Resmi Terverifikasi', cardX + innerWidth - 32, yFooter + 33);
+
+  // Restore clip
+  ctx.restore();
+
+  // 7. Trigger High Quality PNG Download
   canvas.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -1756,8 +2283,485 @@ function exportReportAsImage() {
       }
     } catch (e) {}
 
-    showToast('Gambar laporan berhasil diunduh untuk Kacery! 📸');
+    showToast('Gambar laporan resmi berhasil diunduh untuk Kacery! 📸');
   }, 'image/png');
+}
+
+/**
+ * =========================================================================
+ * NAVIGATION & TAB SWITCHING (Beranda, Riwayat, Lisensi & Hak Cipta)
+ * =========================================================================
+ */
+function switchTab(tabName) {
+  activeTab = tabName;
+
+  // Toggle active class on tab buttons
+  if (tabBtnHome) {
+    const isHome = tabName === 'home';
+    tabBtnHome.classList.toggle('is-active', isHome);
+    tabBtnHome.setAttribute('aria-selected', isHome ? 'true' : 'false');
+  }
+  if (tabBtnHistory) {
+    const isHistory = tabName === 'history';
+    tabBtnHistory.classList.toggle('is-active', isHistory);
+    tabBtnHistory.setAttribute('aria-selected', isHistory ? 'true' : 'false');
+  }
+  if (tabBtnLicense) {
+    const isLicense = tabName === 'license';
+    tabBtnLicense.classList.toggle('is-active', isLicense);
+    tabBtnLicense.setAttribute('aria-selected', isLicense ? 'true' : 'false');
+  }
+
+  // Toggle visibility of panels
+  if (tabContentHome) {
+    const isHome = tabName === 'home';
+    tabContentHome.classList.toggle('is-active', isHome);
+    tabContentHome.classList.toggle('is-hidden', !isHome);
+  }
+  if (tabContentHistory) {
+    const isHistory = tabName === 'history';
+    tabContentHistory.classList.toggle('is-active', isHistory);
+    tabContentHistory.classList.toggle('is-hidden', !isHistory);
+  }
+  if (tabContentLicense) {
+    const isLicense = tabName === 'license';
+    tabContentLicense.classList.toggle('is-active', isLicense);
+    tabContentLicense.classList.toggle('is-hidden', !isLicense);
+  }
+
+  // Lazy-load history data only when entering History tab (Zero-Lag guarantee!)
+  if (tabName === 'history') {
+    loadAndRenderHistory(historySearchTerm);
+  }
+
+  logDiscordActivity('TAB_SWITCH', 'Pindah Tab', { tab: tabName });
+}
+
+/**
+ * =========================================================================
+ * INDEXEDDB STORAGE (Local-First Offline Database untuk Riwayat Pekerjaan)
+ * =========================================================================
+ */
+const DB_NAME = 'kacery_validator_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'validation_batches';
+
+function openHistoryDB() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      return reject(new Error('IndexedDB tidak didukung oleh browser ini.'));
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+        store.createIndex('campaignName', 'campaignName', { unique: false });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveBatchToHistory(batchData) {
+  try {
+    const db = await openHistoryDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const item = {
+        id: `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: Date.now(),
+        campaignName: batchData.campaignName || 'Campaign Default',
+        summary: batchData.summary || {},
+        reports: batchData.reports || []
+      };
+      store.add(item);
+      tx.oncomplete = () => resolve(item);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Gagal menyimpan batch riwayat ke IndexedDB:', err);
+  }
+}
+
+async function getAllHistoryBatches() {
+  try {
+    const db = await openHistoryDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const items = request.result || [];
+        items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        resolve(items);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.warn('Gagal membaca data riwayat dari IndexedDB:', err);
+    return [];
+  }
+}
+
+async function deleteHistoryBatch(id) {
+  try {
+    const db = await openHistoryDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete(id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Gagal menghapus batch riwayat:', err);
+  }
+}
+
+async function clearAllHistoryBatches() {
+  try {
+    const db = await openHistoryDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Gagal mengosongkan seluruh riwayat:', err);
+  }
+}
+
+/**
+ * =========================================================================
+ * KALENDER DINAMIS & LOGIKA PENANGGALAN RELATIF DENGAN AUTO-ROLLOVER
+ * =========================================================================
+ * Logika ini menghitung perbedaan waktu terhadap new Date() saat ini secara
+ * dinamis. Tanggal raw tersimpan dalam milidetik, sehingga saat hari berganti
+ * besok hari, data otomatis tergeser ("Hari Ini" menjadi "Kemarin", dsb).
+ */
+const INDO_DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const INDO_MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+function formatFullIndonesianDate(dateObj) {
+  const dayName = INDO_DAYS[dateObj.getDay()];
+  const dateNum = dateObj.getDate();
+  const monthName = INDO_MONTHS[dateObj.getMonth()];
+  const year = dateObj.getFullYear();
+  return `${dayName}, ${dateNum} ${monthName} ${year}`;
+}
+
+function formatTimeWIB(timestamp) {
+  try {
+    const d = new Date(timestamp);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m} WIB`;
+  } catch (e) {
+    return '';
+  }
+}
+
+function getRelativeDateInfo(timestamp) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const startOfYesterday = startOfToday - oneDayMs;
+  const startOfDayBefore = startOfToday - (2 * oneDayMs);
+
+  const targetDate = new Date(timestamp);
+  const fullDateText = formatFullIndonesianDate(targetDate);
+  const groupDateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+
+  let label = '';
+  let sortOrder = 0;
+
+  if (timestamp >= startOfToday) {
+    label = `Hari Ini — ${fullDateText}`;
+    sortOrder = 1;
+  } else if (timestamp >= startOfYesterday) {
+    label = `Kemarin — ${fullDateText}`;
+    sortOrder = 2;
+  } else if (timestamp >= startOfDayBefore) {
+    label = `Kemarin Lusa — ${fullDateText}`;
+    sortOrder = 3;
+  } else {
+    label = fullDateText;
+    sortOrder = 4;
+  }
+
+  return { label, groupDateKey, sortOrder, fullDateText };
+}
+
+/**
+ * =========================================================================
+ * RENDER RIWAYAT PEKERJAAN (LAZY LOADED)
+ * =========================================================================
+ */
+async function loadAndRenderHistory(searchTerm = '') {
+  if (!historyGroupsContainer || !historyEmptyState) return;
+
+  const allBatches = await getAllHistoryBatches();
+
+  // Apply search filter if query provided
+  const query = (searchTerm || '').trim().toLowerCase();
+  let filteredBatches = allBatches;
+  if (query) {
+    filteredBatches = allBatches.filter(b => {
+      const matchCampaign = (b.campaignName || '').toLowerCase().includes(query);
+      if (matchCampaign) return true;
+      const matchReport = (b.reports || []).some(r => {
+        const username = (r.author?.username || '').toLowerCase();
+        const nickname = (r.author?.nickname || '').toLowerCase();
+        const caption = (r.caption || '').toLowerCase();
+        return username.includes(query) || nickname.includes(query) || caption.includes(query);
+      });
+      return matchReport;
+    });
+  }
+
+  // Handle empty state
+  if (filteredBatches.length === 0) {
+    historyGroupsContainer.innerHTML = '';
+    historyEmptyState.style.display = 'flex';
+    return;
+  }
+
+  historyEmptyState.style.display = 'none';
+  historyGroupsContainer.innerHTML = '';
+
+  // Group batches by date key
+  const groupsMap = new Map();
+  filteredBatches.forEach(batch => {
+    const dateInfo = getRelativeDateInfo(batch.timestamp);
+    if (!groupsMap.has(dateInfo.groupDateKey)) {
+      groupsMap.set(dateInfo.groupDateKey, {
+        label: dateInfo.label,
+        sortOrder: dateInfo.sortOrder,
+        timestamp: batch.timestamp,
+        batches: []
+      });
+    }
+    groupsMap.get(dateInfo.groupDateKey).batches.push(batch);
+  });
+
+  // Convert to array and sort groups descending
+  const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+
+  sortedGroups.forEach(group => {
+    const groupSection = document.createElement('section');
+    groupSection.className = 'history-date-group';
+
+    // Date Header Badge
+    const dateHeader = document.createElement('div');
+    dateHeader.className = 'history-date-header';
+    dateHeader.innerHTML = `
+      <span class="history-date-badge-dot"></span>
+      <strong class="history-date-title">${escapeHtml(group.label)}</strong>
+    `;
+    groupSection.appendChild(dateHeader);
+
+    // Batches Container
+    const batchesContainer = document.createElement('div');
+    batchesContainer.className = 'history-batches-container';
+
+    group.batches.forEach(batch => {
+      const batchCard = createHistoryBatchCard(batch);
+      batchesContainer.appendChild(batchCard);
+    });
+
+    groupSection.appendChild(batchesContainer);
+    historyGroupsContainer.appendChild(groupSection);
+  });
+}
+
+function createHistoryBatchCard(batch) {
+  const card = document.createElement('div');
+  card.className = 'history-batch-card';
+  card.id = `history-card-${batch.id}`;
+
+  const summary = batch.summary || {};
+  const total = summary.total || (batch.reports ? batch.reports.length : 0);
+  const pass = summary.pass || (batch.reports ? batch.reports.filter(r => r.overallStatus === 'PASS').length : 0);
+  const fail = summary.fail || (batch.reports ? batch.reports.filter(r => r.overallStatus === 'FAIL').length : 0);
+  const timeStr = formatTimeWIB(batch.timestamp);
+
+  card.innerHTML = `
+    <div class="history-batch-header" role="button" tabindex="0" title="Klik untuk melihat rincian video batch ini">
+      <div class="history-batch-title-row">
+        <span class="history-campaign-badge">${escapeHtml(batch.campaignName || 'Campaign')}</span>
+        <span class="history-time-stamp">${escapeHtml(timeStr)}</span>
+      </div>
+      <div class="history-batch-stats-row">
+        <span class="history-stat-pill pill-total">${total} Video</span>
+        <span class="history-stat-pill pill-pass">✓ ${pass} Sesuai</span>
+        ${fail > 0 ? `<span class="history-stat-pill pill-fail">✕ ${fail} Belum</span>` : ''}
+      </div>
+      <div class="history-batch-actions">
+        <button type="button" class="btn-tbl-action btn-copy-batch" title="Salin rekap WhatsApp batch ini" data-id="${batch.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+        <button type="button" class="btn-tbl-action btn-image-batch" title="Unduh gambar laporan batch ini (PNG)" data-id="${batch.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="btn-tbl-action btn-load-batch" title="Muat batch ini ke halaman Beranda" data-id="${batch.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 14 4 9 9 4"></polyline>
+            <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+          </svg>
+        </button>
+        <button type="button" class="btn-tbl-action btn-delete-batch" title="Hapus batch ini dari riwayat" data-id="${batch.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <button type="button" class="btn-tbl-action btn-toggle-batch" title="Buka/Tutup rincian" data-id="${batch.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="history-batch-body is-hidden" id="history-body-${batch.id}">
+      <div class="history-videos-list">
+        ${(batch.reports || []).map((r, idx) => {
+          const author = r.author || {};
+          const stats = r.stats || {};
+          const pass = r.overallStatus === 'PASS';
+          const review = r.overallStatus === 'NEED REVIEW';
+          const statusClass = pass ? 'pass' : (review ? 'need-review' : 'fail');
+          const statusLabel = r.overallStatusLabel || (pass ? 'Sudah Sesuai' : (review ? 'Perlu Cek' : 'Belum Sesuai'));
+
+          return `
+            <div class="history-video-item">
+              <div class="history-video-item-left">
+                <span class="history-video-num">${idx + 1}.</span>
+                <span class="status-pill ${statusClass} vcard-pill-mini">${escapeHtml(statusLabel)}</span>
+                <a href="${escapeHtml(r.videoUrl || '#')}" target="_blank" rel="noopener noreferrer" class="history-video-link" onclick="event.stopPropagation()">
+                  @${escapeHtml(author.username || 'creator')}
+                </a>
+                <span class="history-video-nickname">${escapeHtml(author.nickname || '')}</span>
+              </div>
+              <div class="history-video-item-right">
+                <span class="history-video-stat">👁️ ${formatNum(stats.views)}</span>
+                <span class="history-video-stat">❤️ ${formatNum(stats.likes)}</span>
+                <span class="history-video-stat">👥 ${formatNum(author.followerCount)}</span>
+                ${(r.failedReasonsSummary && !pass) ? `<span class="history-fail-badge" title="${escapeHtml(r.failedReasonsSummary)}">${escapeHtml(r.failedReasonsSummary)}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  // Accordion Expand/Collapse
+  const header = card.querySelector('.history-batch-header');
+  const body = card.querySelector('.history-batch-body');
+  const toggleBtn = card.querySelector('.btn-toggle-batch');
+  const toggleExpand = () => {
+    const isHidden = body.classList.contains('is-hidden');
+    if (isHidden) {
+      body.classList.remove('is-hidden');
+      toggleBtn.classList.add('is-expanded');
+    } else {
+      body.classList.add('is-hidden');
+      toggleBtn.classList.remove('is-expanded');
+    }
+  };
+
+  header.addEventListener('click', toggleExpand);
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleExpand();
+  });
+
+  // Salin rekap WhatsApp
+  const copyBtn = card.querySelector('.btn-copy-batch');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyBatchReportToClipboard(batch);
+    });
+  }
+
+  // Unduh gambar laporan batch PNG
+  const imageBtn = card.querySelector('.btn-image-batch');
+  if (imageBtn) {
+    imageBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportReportAsImage(batch.reports, `Batch: ${batch.campaignName || 'Campaign'} (${timeStr})`);
+      logDiscordActivity('BUTTON_CLICK', 'Unduh Gambar Batch Riwayat', { count: batch.reports?.length });
+    });
+  }
+
+  // Muat ke Beranda
+  const loadBtn = card.querySelector('.btn-load-batch');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      loadBatchToWorkspace(batch);
+    });
+  }
+
+  // Hapus batch
+  const delBtn = card.querySelector('.btn-delete-batch');
+  if (delBtn) {
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm(`Hapus riwayat batch "${batch.campaignName}" (${timeStr}) untuk Kacery?`)) {
+        await deleteHistoryBatch(batch.id);
+        showToast('Riwayat batch berhasil dihapus.');
+        loadAndRenderHistory(historySearchTerm);
+        logDiscordActivity('BUTTON_CLICK', 'Hapus Batch Riwayat', { id: batch.id });
+      }
+    });
+  }
+
+  return card;
+}
+
+function copyBatchReportToClipboard(batch) {
+  if (!batch.reports || batch.reports.length === 0) {
+    showToast('Tidak ada data dalam batch ini.');
+    return;
+  }
+  const allText = batch.reports.map(formatReportText).join('\n\n');
+  navigator.clipboard.writeText(allText).then(() => {
+    showToast(`Rangkuman ${batch.reports.length} video berhasil disalin untuk Kacery!`);
+    logDiscordActivity('BUTTON_CLICK', 'Salin Rekap Batch Riwayat', { count: batch.reports.length });
+  }).catch(() => {
+    showToast('Gagal menyalin ke clipboard.');
+  });
+}
+
+function loadBatchToWorkspace(batch) {
+  if (!batch.reports || batch.reports.length === 0) {
+    showToast('Tidak ada video dalam batch ini untuk dimuat.');
+    return;
+  }
+  sessionReports = [...batch.reports];
+  renderCards();
+  updateStats();
+  switchTab('home');
+  showToast(`Berhasil memuat ${batch.reports.length} video ke halaman Beranda.`);
+  logDiscordActivity('BUTTON_CLICK', 'Muat Batch ke Beranda', { count: batch.reports.length });
 }
 
 /**

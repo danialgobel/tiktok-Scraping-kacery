@@ -20,28 +20,40 @@ Setiap AI agent (Antigravity, Gemini, Claude, Cursor, Copilot, dll.) yang bekerj
 tiktok-affiliate-validator/
 ├── api/
 │   └── index.js             # Entry point Vercel Serverless Function (import express app)
+├── docs/                    # Dokumentasi Teknis & Operasional Lengkap
+│   ├── 01_ARSITEKTUR_DAN_DESAIN_SISTEM.md
+│   ├── 02_HAL_SULIT_DAN_RAWAN_BUGS.md
+│   ├── 03_PANDUAN_DESKTOP_DAN_AUTO_UPDATE.md
+│   ├── 04_PANDUAN_OPERASIONAL_KACERY.md
+│   └── 05_STANDAR_KODING_DAN_ATURAN_KRITIS.md
+├── electron-main.cjs        # Main process Electron Desktop (Single instance, auto-updater)
 ├── lib/
+│   ├── discord-logger.js    # Logger aktivitas ke Discord webhook (opsional)
+│   ├── ffmpeg-resolver.js   # Multi-tier FFmpeg resolver untuk demuxing audio video asli
 │   ├── gemini-analyzer.js   # Integrasi Google Gemini API (AI Jorje) untuk verifikasi brand
 │   ├── tiktok-extractor.js  # Ekstraksi data publik TikTok (PoW SlardarWAF solver & TikWM fallback)
-│   └── validator.js         # Logika validasi campaign (metrik, hashtag, mention, ER)
-├── public/                  # Frontend PWA (Vanilla JS, CSS modern, no bloated framework)
+│   └── validator.js         # Logika validasi campaign (metrik, hashtag, mention, keranjang kuning)
+├── public/                  # Frontend PWA (Vanilla JS, CSS modern Neobrutalism, no bloated framework)
 │   ├── icons/
+│   │   ├── antigravity-logo.svg # Logo resmi Google Antigravity IDE
+│   │   ├── kacery-logo.ico  # Icon resmi Windows desktop app
 │   │   ├── kacery-logo.png  # Logo resmi huruf 'C' pink berpita
 │   │   ├── icon-192.png
 │   │   └── icon-512.png
-│   ├── app.js               # Logika antarmuka, event listeners, state, dan Tag Adder
+│   ├── app.js               # Logika antarmuka, event listeners, state, Tag Adder, & Canvas PNG
 │   ├── favicon.png          # Tab browser favicon
-│   ├── index.html           # Struktur HTML responsif
+│   ├── index.html           # Struktur HTML responsif (3 Tab: Beranda, Riwayat, Lisensi)
 │   ├── manifest.json        # Konfigurasi PWA (Add to Home Screen)
-│   ├── style.css            # Tema pink-putih modern, responsif desktop & mobile
+│   ├── style.css            # Tema pink-putih Neobrutalism, responsif desktop & mobile
 │   └── sw.js                # Service Worker Network-First dengan auto-update
 ├── test/
-│   └── test_core.js         # Test suite: 30 pengujian unit & integrasi ekstraksi TikTok
+│   ├── test_core.js         # Test suite: 35 pengujian unit & integrasi ekstraksi TikTok
+│   └── test_desktop_runtime.ps1 # Skrip verifikasi otomasi runtime desktop Windows
 ├── .env.example             # Template konfigurasi environment (tanpa secret key)
-├── .gitignore               # Menjaga .env, node_modules, dan log tidak bocor ke Git
-├── package.json             # Konfigurasi dependensi (express, cors) & scripts
-├── README.md                # Dokumentasi publik & panduan deploy Vercel
-├── server.js                # Express server lokal & handler API backend
+├── .gitignore               # Menjaga .env, node_modules, dan dist tidak bocor ke Git
+├── package.json             # Konfigurasi dependensi, scripts, electron-builder, & auto-updater
+├── README.md                # Dokumentasi publik & panduan deploy Vercel / Desktop
+├── server.js                # Express server lokal & handler API backend (dynamic port fallback)
 └── vercel.json              # Konfigurasi deploy Vercel, rewrites API, & header anti-stale cache
 ```
 
@@ -76,8 +88,9 @@ tiktok-affiliate-validator/
 
 ---
 
-## 4. Mekanisme Auto-Update & Anti-Cache (Vercel & PWA)
+## 4. Mekanisme Auto-Update & Anti-Cache (Vercel, PWA, & Desktop)
 
+### A. Untuk Web Vercel & PWA (Otomatis via Git Push)
 Ketika melakukan perubahan pada file di folder `public/`:
 1. **Naikkan Versi Cache Buster di `public/index.html`:**
    ```html
@@ -89,9 +102,33 @@ Ketika melakukan perubahan pada file di folder `public/`:
    const APP_VERSION = 'vX.X.0';
    const CACHE_NAME = `kacery-validator-${APP_VERSION}`;
    ```
-3. **Penyebab Bug Sebelumnya (PENTING DIPERHATIKAN):**
-   * Jangan pernah mendeklarasikan fungsi atau variabel dengan nama yang sama lebih dari satu kali di `app.js`. Dalam ES Modules, browser akan melempar `SyntaxError` dan mematikan seluruh interaksi tombol.
-   * `vercel.json` sudah dikonfigurasikan dengan `Cache-Control: no-cache, no-store, must-revalidate` untuk file HTML, JS, dan CSS agar CDN dan browser tidak mengunci versi usang.
+3. **Push ke GitHub:** Cukup `git push origin main`, Vercel otomatis melakukan build dan deploy.
+
+### B. ATURAN WAJIB SETIAP ADA UPDATE DESKTOP (.EXE)
+> **PERINGATAN UNTUK SEMUA AI AGENT (Antigravity, Claude, Cursor, dll.):**  
+> Setiap kali kamu selesai memperbaiki bug atau menambahkan fitur baru, kamu **WAJIB** mengingatkan Bel untuk merilis update aplikasi desktop ke **GitHub Releases**. Jika hanya di-push ke git tanpa diunggah ke GitHub Releases, aplikasi di laptop Kacery **TIDAK AKAN** terupdate otomatis!
+
+**Langkah Standar Rilis Update Desktop (.exe):**
+1. **Naikkan Versi di `package.json`:**  
+   Ubah `"version": "X.X.X"` ke versi berikutnya (misal `1.1.2` -> `1.1.3`).
+2. **Kompilasi Binary Desktop Baru:**  
+   ```bash
+   npm run build:exe
+   ```
+3. **Ambil 4 File dari Folder `dist/`:**  
+   * `latest.yml` *(WAJIB: Manifest berisi versi dan checksum sha512 untuk auto-updater)*
+   * `TikTok Validator Kacery Setup X.X.X.exe` *(WAJIB: Installer NSIS)*
+   * `TikTok Validator Kacery Setup X.X.X.exe.blockmap` *(WAJIB: File delta agar download hemat kuota)*
+   * `TikTok Validator Kacery X.X.X.exe` *(Opsional: Versi Portable)*
+4. **Unggah ke GitHub Releases:**  
+   * Buka browser ke: `https://github.com/danialgobel/tiktok-Scraping-kacery/releases`
+   * Klik **"Draft a new release"** (atau "Create a new release").
+   * Isi **Tag**: `vX.X.X` (misal `v1.1.3`).
+   * Isi **Title**: `TikTok Validator Kacery vX.X.X`.
+   * Drag & drop ke-4 file dari `dist/` ke kotak attachment file rilis.
+   * Klik **"Publish release"**.
+5. **Hasil di Laptop Kacery:**  
+   Begitu release di-publish, saat Kacery membuka aplikasinya, sistem auto-updater akan membaca `latest.yml` di GitHub, mengunduh pembaruan di latar belakang, dan otomatis memperbarui aplikasi saat ditutup. Pengguna (Kacery) tidak perlu instal ulang manual!
 
 ---
 
@@ -115,7 +152,16 @@ Ketika melakukan perubahan pada file di folder `public/`:
 * **Jalankan Uji Otomatis (Wajib sebelum push):**
   ```bash
   npm test
-  # Menjalankan 30 test case di test/test_core.js (100% PASS)
+  # Menjalankan 35 test case di test/test_core.js (100% PASS)
+  ```
+* **Jalankan Aplikasi Desktop:**
+  ```bash
+  npm run desktop
+  ```
+* **Build File Executable Desktop Windows (.exe):**
+  ```bash
+  npm run build:exe
+  # Menghasilkan NSIS Installer & Portable exe di folder dist/
   ```
 * **Deploy ke Vercel:**
   Cukup lakukan `git push origin main`. Vercel otomatis melakukan build dan deploy.

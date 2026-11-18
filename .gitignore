@@ -24,4 +24,6 @@ Thumbs.db
 # Temporary test files & caches
 .cache/
 tmp/
+dist/
+release/
 .playwright-mcp/

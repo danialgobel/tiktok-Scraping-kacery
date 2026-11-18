@@ -1,16 +1,73 @@
 {
-  "name": "tiktok-affiliate-validator",
-  "version": "1.0.0",
-  "description": "TikTok Affiliate Content Validator - Automatic validation of metrics, hashtags, mentions, captions and ER",
+  "name": "tiktok-validator-kacery",
+  "version": "1.1.2",
+  "description": "TikTok Validator Kacery - Desktop Application",
   "type": "module",
-  "main": "server.js",
+  "main": "electron-main.cjs",
   "scripts": {
     "start": "node server.js",
+    "desktop": "electron electron-main.cjs",
+    "build:exe": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
     "dev": "node --watch server.js",
     "test": "node test/test_core.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "electron-updater": "^6.8.11",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.danialgobel.tiktokvalidatorkacery",
+    "productName": "TikTok Validator Kacery",
+    "copyright": "Copyright © 2026 Danial Gobel & Jorje Asisten AI",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "public/icons/kacery-logo.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TikTok Validator Kacery"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "danialgobel",
+        "repo": "tiktok-Scraping-kacery"
+      }
+    ],
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!.git/**/*",
+      "!.env",
+      "!test/**/*",
+      "!tools/**/*"
+    ]
   }
 }

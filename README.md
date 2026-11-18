@@ -1,43 +1,58 @@
-# TikTok Validator Kacery (PWA)
+# TikTok Validator Kacery
 
-Aplikasi web otomatis (Progressive Web App) khusus dirancang untuk mempermudah dan mempercepat pekerjaan **Kacery** dalam memeriksa serta memvalidasi konten video TikTok affiliate secara instan dan akurat.
+Aplikasi otomatis (Progressive Web App & Standalone Desktop Windows) khusus dirancang untuk mempermudah dan mempercepat pekerjaan **Kacery** dalam memeriksa serta memvalidasi kepatuhan video TikTok affiliate secara instan, akurat, dan profesional.
+
+Dibuat oleh **Danial Gobel** & **Jorje Asisten AI** menggunakan **Google Antigravity IDE**.
 
 ---
 
 ## Fitur Utama
 
-1. **Ekstraksi Data Video TikTok Otomatis (Tanpa Login & Cepat)**
+1. **3 Tab Navigasi Terstruktur**
+   - **🏠 Beranda:** Ruang kerja utama untuk memeriksa link video TikTok secara instan, memutar audio asli video, dan mengunduh laporan.
+   - **📜 Riwayat (IndexedDB Lokal):** Arsip riwayat otomatis yang dikelompokkan berdasarkan tanggal (`Hari Ini`, `Kemarin`, `Kemarin Lusa`), lengkap dengan fitur cari kreator dan ekspor ulang.
+   - **⚖️ Lisensi & Hak Cipta:** Informasi hak cipta orisinal Danial Gobel & AI Jorje serta jaminan keamanan privasi tanpa pihak ketiga.
+
+2. **Ekstraksi Data Video TikTok Publik (Tanpa Login & Cepat)**
    - Mendukung tautan video standar (`tiktok.com/@user/video/...`) dan tautan pendek (`vt.tiktok.com`, `vm.tiktok.com`).
-   - Ekstraksi langsung metrik publik: Followers akun pengunggah, Views, Likes, Komentar, Share, dan Saves (Bookmarks).
-   - Ekstraksi caption lengkap, hashtag, dan mention.
+   - Ekstraksi langsung metrik publik: Followers akun pengunggah, Views, Likes, Komentar, Share, dan Saves.
    - Dilengkapi pemecah tantangan Proof-of-Work (PoW) SlardarWAF lokal (~1 ms) serta fallback TikWM API.
 
-2. **Tag Adder Interaktif (Input Satu per Satu)**
-   - Input Hashtag (`#`), Mention (`@`), dan Kata Kunci Brand dapat dimasukkan satu per satu dengan tombol **`+ Tambah`** (atau tekan Enter).
-   - Menghindari kesalahan format koma/spasi.
+3. **Pemutar Audio Asli Video (Direct Video Audio Demux)**
+   - Mengekstrak audio asli omongan kreator langsung dari file video menggunakan multi-tier FFmpeg resolver, bukan sekadar musik latar tren TikTok.
+
+4. **Tag Adder Interaktif (Input Satu per Satu)**
+   - Input Hashtag (`#`), Mention (`@`), dan Kata Kunci Brand dimasukkan satu per satu dengan tombol **`+ Tambah`** (atau tekan Enter).
    - Dilengkapi chip badge interaktif yang mudah dihapus (`✕`).
 
-3. **Verifikasi Konten Cerdas AI Jorje**
-   - Menganalisis konteks video dan teks caption untuk memastikan brand yang diwajibkan benar-benar dipromosikan (bukan video hiburan random).
-   - Menampilkan skor akurasi dan ringkasan ramah dalam bahasa Indonesia dari asisten AI Jorje.
+5. **Verifikasi Konten Cerdas AI Jorje**
+   - Menganalisis konteks video dan teks caption untuk memastikan brand yang diwajibkan benar-benar dipromosikan.
+   - Memberikan stempel verifikasi ramah dalam bahasa Indonesia dari asisten AI Jorje.
 
-4. **Perhitungan Engagement Rate (ER) Akurat**
-   - Rumus: `ER = (Likes + Komentar + Share + Saves) / Views × 100%`.
-   - Transparan jika data Saves tidak tersedia dari TikTok.
+6. **Pemeriksaan Banyak Video Sekaligus (Batch Mode)**
+   - Mendukung puluhan tautan sekaligus (satu baris per link) dengan progress bar waktu nyata.
 
-5. **Pemeriksaan Banyak Video Sekaligus (Batch Mode)**
-   - Mendukung 10 hingga 20 tautan sekaligus (satu baris per link).
-   - Dilengkapi progress bar waktu nyata.
-
-6. **Laporan & Ekspor Hasil Pekerjaan**
+7. **Laporan & Ekspor Lengkap**
    - Status terstruktur: **Sudah Sesuai**, **Belum Sesuai**, atau **Perlu Cek**.
-   - **Salin Rekap:** Format teks rapi siap ditempel ke chat WhatsApp atau spreadsheet.
-   - **Download CSV:** Ekspor seluruh laporan ke file Excel CSV dengan satu klik.
+   - **Salin Rekap WhatsApp:** Teks rapi siap tempel ke grup WhatsApp klien.
+   - **Unduh CSV:** Ekspor ke format Excel CSV.
+   - **Unduh Gambar Laporan (PNG Neobrutalism):** Infografis beresolusi tinggi (Hi-DPI) dengan desain Neobrutalism pastel modern dan stempel verifikasi resmi.
 
-7. **Desain Responsif & Auto-Update di Vercel**
-   - **Desktop:** Tampilan Dashboard Dua Kolom modern dan lega.
-   - **Mobile (HP):** Tampilan Satu Kolom vertikal yang nyaman dioperasikan satu tangan.
-   - **Auto-Update PWA:** Jika ada pembaruan kode di GitHub yang ter-deploy di Vercel, pengguna (Kacery) yang membuka link web atau menginstal PWA akan otomatis menerima versi terbaru tanpa perlu membersihkan cache browser secara manual.
+8. **Dua Format Aplikasi (Web PWA & Desktop Windows .exe)**
+   - **Web / PWA:** Buka di browser atau pasang di HP Android / iOS.
+   - **Desktop Windows (.exe):** File executable murni (Setup Installer & Portable) dengan fitur **Auto-Updater via GitHub Releases**.
+
+---
+
+## 📚 Dokumentasi Teknis Lengkap (`docs/`)
+
+Seluruh catatan teknis, arsitektur, panduan rilis, dan dokumentasi operasional tersedia di folder `docs/`:
+
+* [01. Arsitektur & Desain Sistem](file:///c:/Users/acer/.gemini/antigravity-ide/scratch/tiktok-affiliate-validator/docs/01_ARSITEKTUR_DAN_DESAIN_SISTEM.md)
+* [02. Hal Sulit & Celah Rawan Bug](file:///c:/Users/acer/.gemini/antigravity-ide/scratch/tiktok-affiliate-validator/docs/02_HAL_SULIT_DAN_RAWAN_BUGS.md)
+* [03. Panduan Desktop & Auto-Update GitHub](file:///c:/Users/acer/.gemini/antigravity-ide/scratch/tiktok-affiliate-validator/docs/03_PANDUAN_DESKTOP_DAN_AUTO_UPDATE.md)
+* [04. Panduan Operasional Kacery](file:///c:/Users/acer/.gemini/antigravity-ide/scratch/tiktok-affiliate-validator/docs/04_PANDUAN_OPERASIONAL_KACERY.md)
+* [05. Standar Koding & Aturan Kritis](file:///c:/Users/acer/.gemini/antigravity-ide/scratch/tiktok-affiliate-validator/docs/05_STANDAR_KODING_DAN_ATURAN_KRITIS.md)
 
 ---
 
@@ -49,15 +64,31 @@ Aplikasi web otomatis (Progressive Web App) khusus dirancang untuk mempermudah d
    ```
 
 2. **Konfigurasi Environment**
-   Salin `.env.example` menjadi `.env`:
+   Salin `.env.example` menjadi `.env` dan masukkan `GEMINI_API_KEY`:
    ```bash
    cp .env.example .env
    ```
-   Isi `GEMINI_API_KEY` jika ingin mengaktifkan fitur analisis AI lokal.
 
-3. **Jalankan Aplikasi**
+3. **Jalankan Aplikasi Web Lokal**
    ```bash
    npm start
+   # Buka http://localhost:3000
+   ```
+
+4. **Jalankan Aplikasi Desktop (Electron)**
+   ```bash
+   npm run desktop
+   ```
+
+5. **Build Executable Windows (.exe)**
+   ```bash
+   npm run build:exe
+   # File installer dan portable akan muncul di folder dist/
+   ```
+
+6. **Uji Logika (Unit & Integration Test)**
+   ```bash
+   npm test
    ```
    Buka di browser: `http://localhost:3000`
 

@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { extractTikTokVideo } from './lib/tiktok-extractor.js';
 import { validateVideo, DEFAULT_CAMPAIGN_CONFIG } from './lib/validator.js';
 import { analyzeContentWithGemini } from './lib/gemini-analyzer.js';
 import { logActivityToDiscord } from './lib/discord-logger.js';
+import { getFfmpegPath, checkFfmpegAvailable } from './lib/ffmpeg-resolver.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -139,6 +141,160 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 });
 
+// In-memory cache for extracted audio streams (max 50, 15 min TTL)
+const AUDIO_STREAM_CACHE = new Map();
+let ffmpegAvailableCache = null;
+let lastFfmpegCheck = 0;
+
+async function isFfmpegReady() {
+  const now = Date.now();
+  if (ffmpegAvailableCache !== null && (now - lastFfmpegCheck < 60000)) {
+    return ffmpegAvailableCache;
+  }
+  ffmpegAvailableCache = await checkFfmpegAvailable();
+  lastFfmpegCheck = now;
+  return ffmpegAvailableCache;
+}
+
+// API: Pure Audio Stream Extractor (converts video stream to pure MP3 audio via ffmpeg on-the-fly)
+app.get('/api/stream-audio', async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return res.status(400).send('URL video diperlukan');
+  }
+
+  // 1. Check in-memory audio cache
+  const cached = AUDIO_STREAM_CACHE.get(targetUrl);
+  if (cached && (Date.now() - cached.timestamp < 15 * 60 * 1000)) {
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=900');
+    return res.send(cached.buffer);
+  }
+
+  // 2. Jika FFmpeg tidak tersedia di sistem, langsung alihkan ke proxy-video (instant stream)
+  const hasFfmpeg = await isFfmpegReady();
+  if (!hasFfmpeg) {
+    return res.redirect(`/api/proxy-video?url=${encodeURIComponent(targetUrl)}`);
+  }
+
+  try {
+    // 3. Spawn ffmpeg to extract authentic MP3 audio stream from video on the fly
+    const ffmpegCmd = getFfmpegPath();
+    const ff = spawn(ffmpegCmd, [
+      '-headers', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nReferer: https://www.tiktok.com/\r\n',
+      '-i', targetUrl,
+      '-vn',
+      '-acodec', 'libmp3lame',
+      '-ab', '128k',
+      '-ar', '44100',
+      '-f', 'mp3',
+      'pipe:1'
+    ]);
+
+    const chunks = [];
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=900');
+
+    ff.stdout.on('data', chunk => {
+      chunks.push(chunk);
+      res.write(chunk);
+    });
+
+    ff.stdout.on('end', () => {
+      res.end();
+      if (chunks.length > 0) {
+        const fullBuffer = Buffer.concat(chunks);
+        AUDIO_STREAM_CACHE.set(targetUrl, { timestamp: Date.now(), buffer: fullBuffer });
+        if (AUDIO_STREAM_CACHE.size > 50) {
+          const oldest = AUDIO_STREAM_CACHE.keys().next().value;
+          AUDIO_STREAM_CACHE.delete(oldest);
+        }
+      }
+    });
+
+    ff.stderr.on('data', () => {});
+
+    ff.on('error', (err) => {
+      console.warn('ffmpeg extraction fallback to proxy-video:', err.message);
+      if (!res.headersSent) {
+        res.redirect(`/api/proxy-video?url=${encodeURIComponent(targetUrl)}`);
+      }
+    });
+
+    req.on('close', () => {
+      ff.kill();
+    });
+  } catch (err) {
+    console.warn('Audio stream error fallback to proxy-video:', err.message);
+    if (!res.headersSent) {
+      res.redirect(`/api/proxy-video?url=${encodeURIComponent(targetUrl)}`);
+    }
+  }
+});
+
+// API: Video Stream Proxy (bypasses TikTok CDN CORS & hotlink protection with Range support)
+app.get('/api/proxy-video', async (req, res) => {
+  const videoUrl = req.query.url;
+  if (!videoUrl || typeof videoUrl !== 'string') {
+    return res.status(400).send('URL video diperlukan');
+  }
+
+  try {
+    const rangeHeader = req.headers.range;
+    const fetchHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': 'https://www.tiktok.com/',
+      'Accept': '*/*',
+    };
+
+    if (rangeHeader) {
+      fetchHeaders['Range'] = rangeHeader;
+    }
+
+    const videoRes = await fetch(videoUrl, { headers: fetchHeaders });
+
+    if (!videoRes.ok && videoRes.status !== 206) {
+      return res.status(videoRes.status).send('Gagal mengambil video dari sumber');
+    }
+
+    res.status(videoRes.status);
+    const contentType = videoRes.headers.get('content-type') || 'video/mp4';
+    const contentLength = videoRes.headers.get('content-length');
+    const contentRange = videoRes.headers.get('content-range');
+    const acceptRanges = videoRes.headers.get('accept-ranges') || 'bytes';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Accept-Ranges', acceptRanges);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    if (contentRange) res.setHeader('Content-Range', contentRange);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
+    const reader = videoRes.body.getReader();
+    const pump = async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+        res.end();
+      } catch (e) {
+        reader.cancel().catch(() => {});
+        res.end();
+      }
+    };
+    pump();
+
+    req.on('close', () => {
+      reader.cancel().catch(() => {});
+    });
+  } catch (err) {
+    if (!res.headersSent) {
+      res.status(500).send(`Gagal memuat video: ${err.message}`);
+    }
+  }
+});
+
 // API: Single video extraction
 app.post('/api/extract', async (req, res) => {
   const { url, sessionCookie } = req.body;
@@ -158,6 +314,8 @@ app.post('/api/extract', async (req, res) => {
 // API: Single video validation
 app.post('/api/validate', async (req, res) => {
   const { url, campaignConfig, manualVideoReview, sessionCookie } = req.body;
+  console.log(`\n======================================================`);
+  console.log(`[REQ /api/validate] URL: ${url}`);
   if (!url) {
     return res.status(400).json({ success: false, error: 'URL video tidak boleh kosong' });
   }
@@ -168,10 +326,13 @@ app.post('/api/validate', async (req, res) => {
 
   try {
     const rawData = await extractTikTokVideo(url, clientIp, cookie);
+    console.log(`[EXTRACTED] Source: ${rawData.source || 'direct'}, VideoUrl: ${rawData.media?.videoUrl ? 'YES' : 'NO'}, AudioUrl: ${rawData.media?.audioUrl ? 'YES' : 'NO'}`);
+    console.log(`[EXTRACTED AUDIO] URL: ${rawData.media?.audioUrl}`);
     let report = validateVideo(rawData, config, manualVideoReview);
     report = await enrichWithGemini(report, config);
     res.json(report);
   } catch (err) {
+    console.error(`[VALIDATE ERROR]:`, err.message);
     res.status(500).json({
       success: false,
       videoUrl: url,
@@ -232,13 +393,54 @@ app.post('/api/batch-validate', async (req, res) => {
   });
 });
 
+// API: System & Environment Status (Desktop & Web Telemetry)
+app.get('/api/system-status', async (req, res) => {
+  const hasFfmpeg = await checkFfmpegAvailable();
+  res.json({
+    success: true,
+    isDesktop: Boolean(process.versions?.electron),
+    ffmpegAvailable: hasFfmpeg,
+    ffmpegPath: getFfmpegPath(),
+    nodeVersion: process.version,
+    platform: process.platform,
+    uptime: process.uptime()
+  });
+});
+
 // Fallback to index.html for SPA/PWA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Only listen when running standalone/locally (not inside Vercel serverless functions)
-if (!process.env.VERCEL) {
+/**
+ * Start Desktop Server with Dynamic Port Collision Handling
+ * Automatically picks a free port if 3000 is occupied.
+ */
+export function startDesktopServer(preferredPort = 3000) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(preferredPort, '127.0.0.1', () => {
+      const port = server.address().port;
+      console.log(`🚀 Desktop server running on http://127.0.0.1:${port}`);
+      resolve({ server, port });
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${preferredPort} sedang dipakai, mencari port bebas otomatis...`);
+        const fallbackServer = app.listen(0, '127.0.0.1', () => {
+          const port = fallbackServer.address().port;
+          console.log(`🚀 Desktop server running on fallback port http://127.0.0.1:${port}`);
+          resolve({ server: fallbackServer, port });
+        });
+        fallbackServer.on('error', reject);
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
+
+// Only listen standalone if not running inside Vercel or Electron master process
+if (!process.env.VERCEL && !process.env.ELECTRON_RUN_AS_NODE && !process.versions?.electron) {
   app.listen(PORT, () => {
     console.log(`\n======================================================`);
     console.log(`🚀 TikTok Affiliate Validator server is running!`);
