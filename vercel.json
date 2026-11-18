@@ -1,6 +1,10 @@
 {
   "version": 2,
-  "regions": ["sin1"],
+  "functions": {
+    "api/index.js": {
+      "regions": ["sin1"]
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
