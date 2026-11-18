@@ -145,8 +145,9 @@ app.post('/api/extract', async (req, res) => {
   if (!url) {
     return res.status(400).json({ success: false, error: 'URL video tidak boleh kosong' });
   }
+  const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || '';
   try {
-    const data = await extractTikTokVideo(url);
+    const data = await extractTikTokVideo(url, clientIp);
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -160,10 +161,11 @@ app.post('/api/validate', async (req, res) => {
     return res.status(400).json({ success: false, error: 'URL video tidak boleh kosong' });
   }
 
+  const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || '';
   const config = campaignConfig || DEFAULT_CAMPAIGN_CONFIG;
 
   try {
-    const rawData = await extractTikTokVideo(url);
+    const rawData = await extractTikTokVideo(url, clientIp);
     let report = validateVideo(rawData, config, manualVideoReview);
     report = await enrichWithGemini(report, config);
     res.json(report);
