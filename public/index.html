@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="/icons/kacery-logo.png">
   <link rel="apple-touch-icon" href="/icons/kacery-logo.png">
-  <link rel="stylesheet" href="/style.css?v=3.2">
+  <link rel="stylesheet" href="/style.css?v=3.3">
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -446,11 +446,42 @@
     </div>
   </div>
 
+  <!-- Modal Preview Gambar Produk Keranjang Kuning (Zoom / Lightbox) -->
+  <div id="modal-image-preview" class="modal-overlay is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="modal-image-title">
+    <div class="modal-dialog-box modal-image-dialog">
+      <div class="modal-header-row">
+        <div class="modal-image-header-info">
+          <span class="badge-step-pill">🛍️ Produk Keranjang Kuning</span>
+          <h3 id="modal-image-title" class="dialog-heading" style="margin-top: 0.35rem; font-size: 1.05rem;">Nama Produk</h3>
+        </div>
+        <button id="btn-close-image-modal" type="button" class="btn-modal-close" aria-label="Tutup preview gambar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-image-body">
+        <img id="modal-image-src" src="" alt="Gambar Produk Keranjang Kuning" class="modal-preview-img">
+      </div>
+      <div class="modal-dialog-footer" style="justify-content: space-between;">
+        <span id="modal-image-seller" class="modal-image-seller-text">🏪 Tokopedia / TikTok Shop</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <a id="modal-image-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-primary-action" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem;">
+            <span>Buka Link Produk</span>
+            <span>↗</span>
+          </a>
+          <button id="btn-close-image-modal-2" type="button" class="btn-secondary-action">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="toast-popup" role="status" aria-live="polite" style="display: none;">
     <span id="toast-message">Notifikasi</span>
   </div>
 
-  <script src="/app.js?v=3.2" type="module"></script>
+  <script src="/app.js?v=3.3" type="module"></script>
 </body>
 </html>

@@ -96,6 +96,49 @@ app.post('/api/activity-log', (req, res) => {
   }
 });
 
+// API: Image Proxy to bypass TikTok Shop CDN hotlink protection
+app.get('/api/proxy-image', async (req, res) => {
+  const imageUrl = req.query.url;
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return res.status(400).send('URL gambar diperlukan');
+  }
+
+  try {
+    const parsed = new URL(imageUrl);
+    const allowedHost = parsed.hostname.endsWith('tiktokcdn.com') ||
+      parsed.hostname.endsWith('ibyteimg.com') ||
+      parsed.hostname.endsWith('tiktok.com') ||
+      parsed.hostname.endsWith('tokopedia.net') ||
+      parsed.hostname.endsWith('tokopedia.com') ||
+      parsed.hostname.includes('tiktokcdn');
+
+    if (!allowedHost) {
+      return res.status(403).send('Domain gambar tidak diizinkan');
+    }
+
+    const imgRes = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': 'https://www.tiktok.com/',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      },
+    });
+
+    if (!imgRes.ok) {
+      return res.status(imgRes.status).send('Gagal mengambil gambar dari sumber');
+    }
+
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+
+    const arrayBuffer = await imgRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    res.status(500).send(`Gagal memuat gambar: ${err.message}`);
+  }
+});
+
 // API: Single video extraction
 app.post('/api/extract', async (req, res) => {
   const { url } = req.body;

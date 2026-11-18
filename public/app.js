@@ -323,6 +323,17 @@ function init() {
     if (e.target === tourOverlay) closeTour();
   });
 
+  const imageModal = document.getElementById('modal-image-preview');
+  if (imageModal) {
+    imageModal.addEventListener('click', (e) => {
+      if (e.target === imageModal) closeImagePreviewModal();
+    });
+    const btnCloseImg1 = document.getElementById('btn-close-image-modal');
+    if (btnCloseImg1) btnCloseImg1.addEventListener('click', closeImagePreviewModal);
+    const btnCloseImg2 = document.getElementById('btn-close-image-modal-2');
+    if (btnCloseImg2) btnCloseImg2.addEventListener('click', closeImagePreviewModal);
+  }
+
   // Tour Handlers
   btnStartTour.addEventListener('click', () => {
     startTour(true);
@@ -338,6 +349,8 @@ function init() {
     if (e.key === 'Escape') {
       if (!tourOverlay.classList.contains('is-hidden')) closeTour();
       if (!configModal.classList.contains('is-hidden')) closeConfigModal();
+      const imgModal = document.getElementById('modal-image-preview');
+      if (imgModal && !imgModal.classList.contains('is-hidden')) closeImagePreviewModal();
     }
   });
 
@@ -621,6 +634,46 @@ function closeConfigModal() {
   configModal.classList.add('is-hidden');
   configModal.setAttribute('hidden', '');
   configModal.style.setProperty('display', 'none', 'important');
+}
+
+/**
+ * Image Preview Modal (Lightbox Zoom)
+ */
+function openImagePreviewModal({ src, title, seller, productUrl }) {
+  const modal = document.getElementById('modal-image-preview');
+  if (!modal) return;
+  const imgEl = document.getElementById('modal-image-src');
+  const titleEl = document.getElementById('modal-image-title');
+  const sellerEl = document.getElementById('modal-image-seller');
+  const linkEl = document.getElementById('modal-image-link');
+
+  if (imgEl) {
+    imgEl.src = src || '';
+    imgEl.alt = title || 'Gambar Produk Keranjang Kuning';
+  }
+  if (titleEl) titleEl.textContent = title || 'Produk Keranjang Kuning';
+  if (sellerEl) sellerEl.textContent = seller ? `🏪 ${seller}` : '🏪 Tokopedia / TikTok Shop';
+  if (linkEl) {
+    if (productUrl) {
+      linkEl.href = productUrl;
+      linkEl.style.display = 'inline-flex';
+    } else {
+      linkEl.style.display = 'none';
+    }
+  }
+
+  modal.classList.remove('is-hidden');
+  modal.removeAttribute('hidden');
+  modal.style.setProperty('display', 'flex', 'important');
+  logDiscordActivity('BUTTON_CLICK', 'Buka Zoom Gambar Keranjang Kuning', { title, seller });
+}
+
+function closeImagePreviewModal() {
+  const modal = document.getElementById('modal-image-preview');
+  if (!modal) return;
+  modal.classList.add('is-hidden');
+  modal.setAttribute('hidden', '');
+  modal.style.setProperty('display', 'none', 'important');
 }
 
 function saveConfigFromForm() {
@@ -1093,6 +1146,8 @@ function createVideoTableRows(report, index) {
 
   const yellowCart = report.yellowCart || {};
   const hasCart = yellowCart.hasCart === true;
+  const resolvedCover = yellowCart.proxyCoverUrl || (yellowCart.coverUrl ? `/api/proxy-image?url=${encodeURIComponent(yellowCart.coverUrl)}` : '');
+  const rawCover = yellowCart.coverUrl || '';
 
   const cartBlockHtml = `
     <div class="yellow-cart-card ${hasCart ? '' : 'empty-cart'}" onclick="event.stopPropagation()">
@@ -1107,9 +1162,22 @@ function createVideoTableRows(report, index) {
       </div>
       ${hasCart ? `
         <div class="yellow-cart-body">
-          <div class="yellow-cart-thumb-wrap">
-            ${yellowCart.coverUrl ? `
-              <img src="${escapeHtml(yellowCart.coverUrl)}" alt="Produk" class="yellow-cart-thumb-img" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'font-size:24px;\\'>🛍️</span>'">
+          <div class="yellow-cart-thumb-wrap"
+               role="button"
+               tabindex="0"
+               aria-label="Lihat gambar produk"
+               title="Klik untuk memperbesar gambar produk"
+               data-img="${escapeHtml(resolvedCover || rawCover)}"
+               data-orig-img="${escapeHtml(rawCover)}"
+               data-name="${escapeHtml(yellowCart.name || 'Produk TikTok Shop')}"
+               data-seller="${escapeHtml(yellowCart.seller || 'Tokopedia / TikTok Shop')}"
+               data-url="${escapeHtml(yellowCart.productUrl || '')}">
+            ${(resolvedCover || rawCover) ? `
+              <img src="${escapeHtml(resolvedCover || rawCover)}" 
+                   alt="${escapeHtml(yellowCart.name || 'Produk')}" 
+                   class="yellow-cart-thumb-img" 
+                   loading="lazy" 
+                   onerror="if(!this.dataset.retried && '${escapeHtml(rawCover)}'){this.dataset.retried='1';this.src='/api/proxy-image?url='+encodeURIComponent('${escapeHtml(rawCover)}');}else{this.parentElement.innerHTML='<span style=\\'font-size:24px;\\'>🛍️</span>';}">
             ` : `<span style="font-size:24px;">🛍️</span>`}
           </div>
           <div class="yellow-cart-info-col">
@@ -1270,6 +1338,28 @@ function createVideoTableRows(report, index) {
       }
     });
   });
+
+  // Listener Zoom Gambar Keranjang Kuning (Lightbox Modal)
+  const thumbWrap = detailRow.querySelector('.yellow-cart-thumb-wrap');
+  if (thumbWrap) {
+    const handleZoom = (e) => {
+      e.stopPropagation();
+      const src = thumbWrap.getAttribute('data-img') || '';
+      const title = thumbWrap.getAttribute('data-name') || '';
+      const seller = thumbWrap.getAttribute('data-seller') || '';
+      const productUrl = thumbWrap.getAttribute('data-url') || '';
+      if (src) {
+        openImagePreviewModal({ src, title, seller, productUrl });
+      }
+    };
+    thumbWrap.addEventListener('click', handleZoom);
+    thumbWrap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleZoom(e);
+      }
+    });
+  }
 
   return [mainRow, detailRow];
 }

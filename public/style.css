@@ -1605,6 +1605,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: zoom-in;
+}
+
+.yellow-cart-thumb-wrap:hover::after {
+  content: '🔍';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
 }
 
 .yellow-cart-thumb-img {
@@ -1615,7 +1630,7 @@ body {
 }
 
 .yellow-cart-thumb-img:hover {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .yellow-cart-info-col {
@@ -1671,6 +1686,51 @@ body {
   color: var(--text-muted);
   line-height: 1.4;
   margin: 0;
+}
+
+/* Modal Lightbox Zoom Gambar Produk */
+.modal-image-dialog {
+  max-width: 520px;
+  width: 95%;
+  padding: 1.25rem;
+}
+
+.modal-image-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 82%;
+}
+
+.modal-image-body {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 240px;
+  max-height: 480px;
+}
+
+.modal-preview-img {
+  width: 100%;
+  height: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.modal-image-seller-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* Dual Media Controls: Audio Player & Video */
