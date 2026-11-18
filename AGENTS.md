@@ -105,30 +105,38 @@ Ketika melakukan perubahan pada file di folder `public/`:
 3. **Push ke GitHub:** Cukup `git push origin main`, Vercel otomatis melakukan build dan deploy.
 
 ### B. ATURAN WAJIB SETIAP ADA UPDATE DESKTOP (.EXE)
-> **PERINGATAN UNTUK SEMUA AI AGENT (Antigravity, Claude, Cursor, dll.):**  
-> Setiap kali kamu selesai memperbaiki bug atau menambahkan fitur baru, kamu **WAJIB** mengingatkan Bel untuk merilis update aplikasi desktop ke **GitHub Releases**. Jika hanya di-push ke git tanpa diunggah ke GitHub Releases, aplikasi di laptop Kacery **TIDAK AKAN** terupdate otomatis!
+> **🚨 PERINGATAN MUTLAK UNTUK SEMUA AI AGENT (Antigravity, Claude, Cursor, Copilot, dll.):**  
+> Setiap kali kamu selesai memperbaiki bug, memperbarui UI, atau menambahkan fitur baru pada kode sumber repositori ini, kamu **WAJIB SECARA PROAKTIF MENGINGATKAN BEL** untuk merilis pembaruan ke **GitHub Releases**.  
+> **JANGAN PERNAH** hanya melakukan `git push` lalu menganggap pekerjaan selesai! Jika binary baru tidak diunggah ke GitHub Releases, aplikasi di laptop Kacery **TIDAK AKAN PERNAH** terupdate otomatis!
 
-**Langkah Standar Rilis Update Desktop (.exe):**
-1. **Naikkan Versi di `package.json`:**  
+**Alur Langkah Rilis & Lokasi Unggah di Repositori:**
+1. **Bersihkan File Build Versi Lama di `dist/`:**  
+   Hapus file `.exe` dan `.blockmap` versi terdahulu di folder `dist/` agar Bel tidak bingung saat memilih file yang harus diunggah.
+2. **Naikkan Versi di `package.json`:**  
    Ubah `"version": "X.X.X"` ke versi berikutnya (misal `1.1.2` -> `1.1.3`).
-2. **Kompilasi Binary Desktop Baru:**  
+3. **Naikkan Versi Cache Buster di `public/index.html` dan `public/sw.js`:**  
+   Pastikan tag query `?v=X.X` dan `APP_VERSION` dinaikkan agar PWA Vercel juga sinkron.
+4. **Kompilasi Binary Desktop Baru:**  
    ```bash
    npm run build:exe
    ```
-3. **Ambil 4 File dari Folder `dist/`:**  
-   * `latest.yml` *(WAJIB: Manifest berisi versi dan checksum sha512 untuk auto-updater)*
-   * `TikTok Validator Kacery Setup X.X.X.exe` *(WAJIB: Installer NSIS)*
+5. **Kumpulkan 4 File Wajib dari Folder `dist/`:**  
+   * `latest.yml` *(WAJIB: File manifest penentu versi & checksum sha512 untuk auto-updater)*
+   * `TikTok Validator Kacery Setup X.X.X.exe` *(WAJIB: Installer NSIS resmi)*
    * `TikTok Validator Kacery Setup X.X.X.exe.blockmap` *(WAJIB: File delta agar download hemat kuota)*
-   * `TikTok Validator Kacery X.X.X.exe` *(Opsional: Versi Portable)*
-4. **Unggah ke GitHub Releases:**  
-   * Buka browser ke: `https://github.com/danialgobel/tiktok-Scraping-kacery/releases`
-   * Klik **"Draft a new release"** (atau "Create a new release").
-   * Isi **Tag**: `vX.X.X` (misal `v1.1.3`).
-   * Isi **Title**: `TikTok Validator Kacery vX.X.X`.
-   * Drag & drop ke-4 file dari `dist/` ke kotak attachment file rilis.
+   * `TikTok Validator Kacery X.X.X.exe` *(Opsional/Disarankan: Versi Portable)*
+6. **Bimbing Bel Membuka Halaman Pembuatan Rilis Baru:**  
+   Arahkan Bel langsung ke URL ini:  
+   👉 **`https://github.com/danialgobel/tiktok-Scraping-kacery/releases/new`**
+7. **Pengaturan Form Rilis GitHub:**  
+   * **Tag version:** `vX.X.X` (target: branch `main`).
+   * **Release title:** `TikTok Validator Kacery vX.X.X`.
+   * **Release label:** Pilih **"None"** *(JANGAN pilih Pre-release agar auto-updater mau membaca)*.
+   * **Set as latest release:** Centang aktifkan.
+   * **Attachment:** Unggah ke-4 file dari folder `dist/` di atas.
    * Klik **"Publish release"**.
-5. **Hasil di Laptop Kacery:**  
-   Begitu release di-publish, saat Kacery membuka aplikasinya, sistem auto-updater akan membaca `latest.yml` di GitHub, mengunduh pembaruan di latar belakang, dan otomatis memperbarui aplikasi saat ditutup. Pengguna (Kacery) tidak perlu instal ulang manual!
+8. **Hasil Otomatis di Laptop Kacery:**  
+   Saat Kacery membuka aplikasinya, sistem auto-updater di laptop Kacery akan membaca `latest.yml` di GitHub, mengunduh file installer secara senyap di latar belakang, dan langsung memperbarui aplikasi saat ditutup. Pengguna (Kacery) tidak perlu instal ulang manual!
 
 ---
 

@@ -77,17 +77,19 @@ Perintah ini akan menghasilkan file baru di folder `dist/`:
 * `TikTok Validator Kacery 1.1.3.exe` *(Opsional: Versi portable)*
 
 ### Langkah 3: Buat Release di GitHub
-1. Masuk ke halaman repositori: `https://github.com/danialgobel/tiktok-Scraping-kacery/releases`
-2. Klik tombol **Draft a new release**.
-3. Isi tag versi: `v1.1.3` (pilih target branch `main`).
-4. Judul Release: `TikTok Validator Kacery v1.1.3`.
-5. Tuliskan ringkasan pembaruan (*release notes*).
-6. **Unggah file-file berikut dari folder `dist/` ke kotak Release:**
+1. Masuk langsung ke URL pembuatan rilis baru:  
+   👉 `https://github.com/danialgobel/tiktok-Scraping-kacery/releases/new`
+2. Isi tag versi: `v1.1.3` (pilih target branch `main`).
+3. Judul Release: `TikTok Validator Kacery v1.1.3`.
+4. **Release label:** Pilih **"None"** *(PENTING: Jangan pilih Pre-release agar auto-updater mau membaca rilis ini)*.
+5. **Set as latest release:** Centang aktifkan pilihan ini.
+6. Tuliskan ringkasan pembaruan (*release notes*).
+7. **Unggah 4 file dari folder `dist/` ke kotak Release:**
    * `latest.yml`
    * `TikTok Validator Kacery Setup 1.1.3.exe`
    * `TikTok Validator Kacery Setup 1.1.3.exe.blockmap`
    * `TikTok Validator Kacery 1.1.3.exe`
-7. Klik **Publish release**.
+8. Klik tombol hijau **"Publish release"**.
 
 *Selesai! Seluruh laptop pengguna yang membuka aplikasi akan otomatis menerima pembaruan tersebut di latar belakang saat aplikasi dibuka, dan langsung terpasang saat aplikasi ditutup.*
 
